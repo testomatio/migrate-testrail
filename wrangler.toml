@@ -4,4 +4,4 @@ type = "javascript"
 [build]
 command = "npm i"
 
-# main = "./run.js"
+main = "./run.js"
