@@ -3,6 +3,12 @@ import migrateTestCases from './migrate.js';
 import { configureTestRail } from './testrail.js';
 import { configureTestomatio } from './testomatio.js';
 
+// Now you can access process.env.CF_ACCOUNT_ID wherever you need in your run.js logic
+const accountId = process.env.CF_ACCOUNT_ID;
+
+// Your existing logic in run.js
+console.log(`Using Cloudflare account ID: ${accountId}`);
+
 // ENABLE THIS LINE TO RUN THE SCRIPT
 // PASS VALID VARIABLES TO ACCESS TESTRAIL
 // configureTestRail(testrailBaseUrl, username, password, projectId);
