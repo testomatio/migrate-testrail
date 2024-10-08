@@ -1,0 +1,10 @@
+name = "migrate-testrail"
+type = "javascript"
+
+[build]
+command = "npm i"
+
+# Path to the Worker’s entry point (usually after bundling, if you are using esbuild/webpack)
+main = "./run.js"
+
+workers_dev = true
