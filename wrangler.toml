@@ -3,9 +3,10 @@ type = "javascript"
 main = "./run.js"
 
 nodejs_compat = true
+compatibility_flags = [ "nodejs_compat" ]
 
 compatibility_date = "2024-10-09"
 
 [build]
-command = "npm i"
+command = "npm install"
 
