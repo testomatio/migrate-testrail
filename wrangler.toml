@@ -1,7 +1,7 @@
 name = "migrate-testrail"
 type = "javascript"
+main = "./run.js"
 
 [build]
 command = "npm i"
 
-main = "./run.js"
