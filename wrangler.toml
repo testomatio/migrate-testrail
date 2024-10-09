@@ -1,4 +1,4 @@
-name = "migrate-testrail"
+name = "testomat-migrate-from-testrail-test"
 type = "javascript"
 main = "./run.js"
 
