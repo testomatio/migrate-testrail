@@ -1,0 +1,29 @@
+
+
+aws sts get-caller-identity
+
+aws lambda create-function --function-name my-nodejs-function \
+--zip-file fileb://function.zip --handler index.handler --runtime nodejs18.x \
+--role arn:aws:iam::{ACCOUNT-ID}:role/lambda-exec-role
+
+Update the function if you make changes:
+
+zip -r function.zip .
+aws lambda update-function-code --function-name my-nodejs-function --zip-file fileb://function.zip
+
+
+
+Tune options to run:
+
+aws lambda update-function-configuration \
+    --function-name my-nodejs-function \
+    --handler run.handler
+
+aws lambda update-function-configuration \
+    --function-name my-nodejs-function \
+    --memory-size 256
+
+## 15m, maximum for AWS
+aws lambda update-function-configuration \
+    --function-name my-nodejs-function \
+    --timeout 900
