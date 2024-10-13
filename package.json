@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "TestRail to Testomat.io migration script",
   "type": "module",
-  "main": "index.js",
+  "main": "run.js",
   "scripts": {
     "start": "node run.js"
   },

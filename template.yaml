@@ -1,0 +1,11 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: run.handler
+      Runtime: nodejs18.x
+      Timeout: 900  # Set timeout to 15 minutes (maximum for Lambda)
+      CodeUri: .
+      MemorySize: 1024
