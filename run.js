@@ -22,22 +22,4 @@ configureTestomatio(
     process.env.TESTOMATIO_PROJECT,
 );
 
-export const handler = async (event) => {
-    try {
-        console.log('Starting migration...');
-        const result = await migrateTestCases();
-        console.log('Migration completed:', result);
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ message: 'Migration completed successfully', result })
-        };
-    } catch (error) {
-        console.error('Error:', error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: 'Internal Server Error', error: error.message })
-        };
-    }
-};
-
-
+await migrateTestCases();
