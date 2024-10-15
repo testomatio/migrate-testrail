@@ -16,21 +16,23 @@ aws iam create-role --role-name lambda-exec-role --assume-role-policy-document '
 aws iam attach-role-policy --role-name lambda-exec-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 ```
 
-## Get account ID
-
-```
-aws sts get-caller-identity
-```
-
 ## Build (very simplified)
 ```
 npm install
 zip -r function.zip .
 ```
 
+## Get account ID (for the next step)
+
+```
+aws sts get-caller-identity
+```
+
 ## First deploy
 ```
-aws lambda update-function-code --function-name my-nodejs-function --zip-file fileb://function.zip
+aws lambda create-function --function-name my-nodejs-function \
+    --zip-file fileb://function.zip --handler lambda.handler --runtime nodejs18.x \
+    --role arn:aws:iam::{ACCOUNT-ID}:role/lambda-exec-role
 ```
 
 ## Tune Lambda options for the first run
