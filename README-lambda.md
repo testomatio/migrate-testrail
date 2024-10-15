@@ -60,9 +60,10 @@ aws lambda update-function-code --function-name my-nodejs-function --zip-file fi
 
 ---
 
-## Run from CLI (event.json must exist, see event.json.example)
+## Run from CLI (event.json must exist and contain valid creds, see event.json.example)
 ```
-aws lambda invoke --function-name my-nodejs-function --payload '{}' response.json
+openssl base64 -in event.json -out event.json.base64
+aws lambda invoke --function-name my-nodejs-function --payload file://event.json.base64 response.json
 ```
 
 ## Run from Ruby SDK
