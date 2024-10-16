@@ -1,0 +1,12 @@
+## note: only for local use (but can be fixed for remote use later)
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MigrateFromTestrail:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda.handler
+      Runtime: nodejs18.x
+      Timeout: 900  # Set timeout to 15 minutes (maximum for Lambda)
+      CodeUri: .
+      MemorySize: 256
