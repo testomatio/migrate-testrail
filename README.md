@@ -14,7 +14,17 @@ You are free to customize this script if the default behavior doesn't fit your n
 cp .env.example .env
 ```
 
-* Fill in TestRail and Testomat.io credentials into `.env` file
+* Fill in TestRail credentials into `.env` file
+* Create [General Token](https://app.testomat.io/account/access_tokens) in Testomat.io
+* Fill in Testomat.io credentials into `.env` file
+
+```
+TESTOMATIO_TOKEN=testomat_****
+TESTOMATIO_PROJECT=**
+```
+
+> `TESTOMATIO_PROJECT` is a project URL part, e.g. for `https://app.testomat.io/projects/your-project` it is `your-project`
+
 * Install dependencies
 
 ```
