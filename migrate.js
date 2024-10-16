@@ -56,6 +56,7 @@ export default async function migrateTestCases() {
 
     const labelFields = fields.filter(field => ['String', 'Integer', 'Checkbox', 'Dropdown'].includes(FIELD_TYPES[field.type_id]));
 
+    let errorMigratingRefs = null;
     // maybe we already imported labels
     const prevLabels = {}
     const testomatioLabels = await fetchFromTestomatio(postLabelEndpoint);
@@ -273,7 +274,7 @@ export default async function migrateTestCases() {
         // refs
         const refs = testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref);
 
-        if (refs?.length) {
+        if (refs?.length && !errorMigratingRefs) {
           logData('refs', refs);
           for (const ref of refs) {
             try {
@@ -286,7 +287,7 @@ export default async function migrateTestCases() {
               }
               await postToTestomatio(`${postJiraIssueEndpoint}?test_id=${test.id}&jira_id=${ref}`);
             } catch (error) {
-              console.error('Error adding ref:', error);
+              errorMigratingRefs = error;
             }
           }
         }
@@ -316,9 +317,15 @@ export default async function migrateTestCases() {
       }
     }
     console.log('Done');
+
+    if (errorMigratingRefs) {
+      console.error('We could not link Jira Refs:', errorMigratingRefs?.message);
+    }
+
   } catch (error) {
-    console.error('Error:', error);
+    console.error(error);
   }
+
 }
 
 function fetchDescriptionFromTestCase(testCase, field) {

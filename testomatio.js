@@ -55,7 +55,7 @@ export async function fetchFromTestomatio(endpoint) {
   if (DRY_RUN) return;
   const response = await fetch(`${host}/${endpoint}`, {
     headers: {
-      'Authorization': jwtToken, 
+      'Authorization': jwtToken,
     },
   });
 
@@ -80,18 +80,18 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
         body: JSON.stringify(data),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': jwtToken, 
+          'Authorization': jwtToken,
         }});
 
       if (!response.ok) {
         throw new Error(`Failed to send data: ${response.status} ${response.statusText} ${await response.text()}`);
-      }        
+      }
     } catch (error) {
       console.error('Error:', error);
     }
     return response.json();
-  }  
-  
+  }
+
   logOutput('postToTestomatio', `${host}/${endpoint}`, JSON.stringify({
     data: {
       attributes: data,
@@ -100,11 +100,11 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
   }));
 
   try {
-    response = await fetch(`${host}${endpoint}`, {
+    response = await fetchWithRetry(() => fetch(`${host}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': jwtToken, 
+        'Authorization': jwtToken,
       },
       body: JSON.stringify({
         data: {
@@ -112,22 +112,17 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
           type,
         }
       }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to send data: ${response.status} ${response.statusText} ${await response.text()}`);
-    }
+    }));
 
   } catch (error) {
     console.error('Error:', error);
     return;
   }
-  
+
   const json = await response.json();
   logOutput('postToTestomatio:response', json);
   return json.data;
 }
-
 
 export async function putToTestomatio(endpoint, type, id, data) {
   if (DRY_RUN) return;
@@ -140,11 +135,11 @@ export async function putToTestomatio(endpoint, type, id, data) {
   }));
 
   try {
-    response = await fetch(`${host}/${endpoint}/${id}`, {
+    response = await fetchWithRetry(() => fetch(`${host}/${endpoint}/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': jwtToken, 
+        'Authorization': jwtToken,
       },
       body: JSON.stringify({
         data: {
@@ -152,17 +147,13 @@ export async function putToTestomatio(endpoint, type, id, data) {
           type,
         }
       }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to send data: ${response.status} ${response.statusText} ${await response.text()}`);
-    }
+    }));
 
   } catch (error) {
     console.error('Error:', error);
     return;
   }
-  
+
   const json = await response.json();
   return json.data;
 }
@@ -180,13 +171,13 @@ export const uploadFile = async (testId, filePath, attachment) => {
     formData.append('file', new Blob([fs.readFileSync(filePath)]), attachment.name);
     const url = getTestomatioEndpoints().postAttachmentEndpoint.replace(':tid', testId);
 
-    const response = await fetch(host + url, {
+    const response = await fetchWithRetry(() => fetch(host + url, {
       method: 'POST',
       body: formData,
       headers: {
-        'Authorization': jwtToken, 
-      },      
-    });
+        'Authorization': jwtToken,
+      },
+    }));
 
     if (!response.ok) {
       throw new Error(`Failed to upload file: ${response.status} ${response.statusText} ${host + url}`);
@@ -199,3 +190,26 @@ export const uploadFile = async (testId, filePath, attachment) => {
     console.error('Error uploading file:', error);
   }
 };
+
+async function fetchWithRetry(func, maxRetries = 3, retryDelay = 20000) {
+  let retryCount = 0;
+  while (retryCount < maxRetries) {
+    try {
+      const response = await func();
+      if (response.status !== 429) {
+        return response;
+      }
+      console.log(`Rate limit reached. Waiting for ${retryDelay / 1000} seconds before retrying...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+      retryCount++;
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
+  }
+
+
+  if (!response.ok) {
+    throw new Error(`Failed to send data: ${response.status} ${response.statusText} ${await response.text()}`);
+  }
+}
