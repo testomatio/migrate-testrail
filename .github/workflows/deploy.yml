@@ -1,0 +1,44 @@
+name: Deploy Lambda
+
+on:
+    push:
+        branches:
+            - main  # Or any other branch you want to trigger the deployment on
+            - test-ci
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        environment: production
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: '18'  # or the version your Lambda function requires
+
+            - name: Install AWS CLI
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install awscli -y
+
+            - name: Mask AWS account ID
+              run: echo "::add-mask::${{ secrets.AWS_ACCOUNT_ID }}"
+
+            - name: Npm install
+              run: npm install
+
+            - name: rm unnecessary files
+              run: rm -rf .git
+
+            - name: Zip the Lambda function
+              run: zip -r function.zip .
+
+            - name: Update Lambda function
+              run: aws lambda update-function-code --function-name ${{ vars.LAMBDA_FUNCTION_NAME || 'migrate-testrail' }} --zip-file fileb://function.zip
+              env:
+                  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
