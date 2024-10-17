@@ -64,8 +64,7 @@ Secrets:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION`
-Optional:
-- `AWS_ID` (AWS numeric account id, like 464383111111, to mask it inside logs)
+- `AWS_ACCOUNT_ID` (AWS numeric account id, like 464383111111, to mask it inside logs). Use `aws sts get-caller-identity` to get it.
 
 ---
 

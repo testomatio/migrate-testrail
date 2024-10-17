@@ -24,6 +24,9 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install awscli -y
 
+            - name: Mask AWS account ID
+              run: echo "::add-mask::${{ secrets.AWS_ACCOUNT_ID }}"
+
             - name: Npm install
               run: npm install
 
