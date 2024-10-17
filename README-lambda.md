@@ -57,7 +57,7 @@ aws lambda update-function-configuration \
 Handled via Github Actions.  
 Must have these variables to configure.
 
-Env variables:
+Env variables (must be configured for "production" environment, if it's not present for your GitHub project - create it in Settions):
 - `LAMBDA_FUNCTION_NAME` (default is "migrate-testrail")
 
 Secrets:
