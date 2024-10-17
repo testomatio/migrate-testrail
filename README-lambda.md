@@ -30,7 +30,7 @@ aws sts get-caller-identity
 
 ## First deploy
 ```
-aws lambda create-function --function-name my-nodejs-function \
+aws lambda create-function --function-name migrate-testrail \
     --zip-file fileb://function.zip --handler lambda.handler --runtime nodejs18.x \
     --role arn:aws:iam::{ACCOUNT-ID}:role/lambda-exec-role
 ```
@@ -39,31 +39,38 @@ aws lambda create-function --function-name my-nodejs-function \
 
 ```
 aws lambda update-function-configuration \
-    --function-name my-nodejs-function \
+    --function-name migrate-testrail \
     --handler lambda.handler
 
 aws lambda update-function-configuration \
-    --function-name my-nodejs-function \
+    --function-name migrate-testrail \
     --memory-size 256
 
 ## 15m, maximum for AWS
 aws lambda update-function-configuration \
-    --function-name my-nodejs-function \
+    --function-name migrate-testrail \
     --timeout 900
 ```
 
 ## Further deploys
-```
-zip -r function.zip .
-aws lambda update-function-code --function-name my-nodejs-function --zip-file fileb://function.zip
-```
+
+Handled via Github Actions.  
+Must have these variables to configure.
+
+Env variables:
+- `LAMBDA_FUNCTION_NAME` (default is "migrate-testrail")
+
+Secrets:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
 
 ---
 
 ## Run from CLI (event.json must exist and contain valid creds, see event.json.example)
 ```
 openssl base64 -in event.json -out event.json.base64
-aws lambda invoke --function-name my-nodejs-function --payload file://event.json.base64 response.json
+aws lambda invoke --function-name migrate-testrail --payload file://event.json.base64 response.json
 ```
 
 ## Run from Ruby SDK
