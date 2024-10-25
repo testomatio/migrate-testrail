@@ -16,10 +16,10 @@ aws iam create-role --role-name lambda-exec-role --assume-role-policy-document '
 aws iam attach-role-policy --role-name lambda-exec-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 ```
 
-## Build (very simplified)
+## First Build (very simplified)
+
 ```
 npm install
-zip -r function.zip .
 ```
 
 ## Get account ID (for the next step)
@@ -29,7 +29,10 @@ aws sts get-caller-identity
 ```
 
 ## First deploy
+We need then to push an empty archive first, to not exceed the size limit.
 ```
+zip -r function.zip README-lambda.md
+
 aws lambda create-function --function-name migrate-testrail \
     --zip-file fileb://function.zip --handler lambda.handler --runtime nodejs18.x \
     --role arn:aws:iam::{ACCOUNT-ID}:role/lambda-exec-role
@@ -50,6 +53,16 @@ aws lambda update-function-configuration \
 aws lambda update-function-configuration \
     --function-name migrate-testrail \
     --timeout 900
+```
+
+## Add lambda event execution config (necessary for running from SDK)
+
+```
+aws lambda put-function-event-invoke-config \
+  --function-name migrate-testrail \
+  --maximum-retry-attempts 2 \
+  --maximum-event-age-in-seconds 3600 \
+  --region {AWS_REGION}
 ```
 
 ## Further deploys
@@ -77,3 +90,4 @@ aws lambda invoke --function-name migrate-testrail --payload file://event.json.b
 ## Run from Ruby SDK
 
 See https://github.com/aws/aws-sdk-ruby
+
