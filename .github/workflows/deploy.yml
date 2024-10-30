@@ -27,20 +27,6 @@ jobs:
             - name: Mask AWS account ID
               run: echo "::add-mask::${{ secrets.AWS_ACCOUNT_ID }}"
 
-            - run: aws iam put-user-policy --user-name Testomatio --policy-name AllowAssumeLambdaRole --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"arn:aws:iam::670222747227:role/lambda-exec-role"}]}'
-              env:
-                  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
-
-
-            - run: aws iam update-assume-role-policy --role-name lambda-exec-role --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::670222747227:user/Testomatio"},"Action":"sts:AssumeRole"}]}'
-              env:
-                  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
             - name: Npm install
               run: npm install
 
