@@ -73,7 +73,7 @@ export default async function migrateTestCases() {
         }
       }
 
-      if (FIELD_TYPES[field.type_id] === 'Dropdown') {
+      if (FIELD_TYPES[field.type_id] === 'Dropdown' || FIELD_TYPES[field.type_id] === 'Multi-select') {
         let value = field.configs[0]?.options?.items;
         logData('List values', value);
 

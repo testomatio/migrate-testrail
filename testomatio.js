@@ -75,13 +75,13 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
     try {
       logOutput('postToTestomatio', `${host}/${endpoint}`, JSON.stringify(data));
 
-      response = await fetch(`${host}${endpoint}`, {
+      response = await fetchWithRetry(() => fetch(`${host}${endpoint}`, {
         method: 'POST',
         body: JSON.stringify(data),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': jwtToken,
-        }});
+        }}));
 
       if (!response.ok) {
         throw new Error(`Failed to send data: ${response.status} ${response.statusText} ${await response.text()}`);
@@ -191,7 +191,7 @@ export const uploadFile = async (testId, filePath, attachment) => {
   }
 };
 
-async function fetchWithRetry(func, maxRetries = 3, retryDelay = 20000) {
+async function fetchWithRetry(func, maxRetries = 3, retryDelay = 2000) {
   let retryCount = 0;
   while (retryCount < maxRetries) {
     try {
