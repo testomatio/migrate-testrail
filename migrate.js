@@ -337,7 +337,7 @@ function fetchDescriptionFromTestCase(testCase, field) {
   }
 
   if (FIELD_TYPES[field.type_id] === 'URL') {
-    const text = testCase[field.system_name].trim() || '';
+    const text = testCase[field.system_name]?.trim() || '';
     if (!text) return '';
     return `[${field.label}](${text})`;
   }
