@@ -174,8 +174,6 @@ export default async function migrateTestCases() {
 
       for (const testCase of testCases) {
 
-        if (test.id != 2225) continue;
-
         process.stdout.write('.');
 
         const caseCustomFieldNames = Object.keys(testCase).filter(key => key.startsWith('custom_'));
