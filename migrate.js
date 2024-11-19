@@ -1,6 +1,6 @@
 import debug from 'debug';
 import { getTestRailUrl, getTestRailEndpoints, fetchFromTestRail, downloadFile } from './testrail.js';
-import { getTestomatioEndpoints, loginToTestomatio, uploadFile, fetchFromTestomatio, postToTestomatio, putToTestomatio } from './testomatio.js';
+import { getTestomatioEndpoints, deleteEmptySuites, loginToTestomatio, uploadFile, fetchFromTestomatio, postToTestomatio, putToTestomatio } from './testomatio.js';
 
 const logData = debug('testomatio:testrail:migrate');
 
@@ -215,6 +215,7 @@ export default async function migrateTestCases() {
         }
 
         const caseData = {
+          cid: `testrail/${testCase.id}`,
           title: testCase.title,
           priority: priorities[testCase.priority_id] || 0,
           description,
@@ -226,11 +227,18 @@ export default async function migrateTestCases() {
 
         if (!test) continue;
 
+        if (!test.attributes?.issues?.length) {
+          try {
+            await postToTestomatio(postIssueLinkEndpoint, null, {
+              test_id: test.id,
+              url: `${getTestRailUrl()}/cases/view/${testCase.id}`,
+            });
+          } catch (e) {
+            // not so important
+          }
+        }
+
         // cross link to testrail
-        await postToTestomatio(postIssueLinkEndpoint, null, {
-          test_id: test.id,
-          url: `${getTestRailUrl()}/cases/view/${testCase.id}`,
-        });
 
         const attachments = await fetchFromTestRail(`${getAttachmentsEndpoint}${testCase.id}`, 'attachments');
 
@@ -316,6 +324,10 @@ export default async function migrateTestCases() {
         }
       }
     }
+
+    console.log('Cleaning up empty suites...');
+    await deleteEmptySuites();
+
     console.log('Done');
 
     if (errorMigratingRefs) {

@@ -15,6 +15,7 @@ let jwtToken;
 export function getTestomatioEndpoints() {
   return {
     postSuiteEndpoint: `/api/${project}/suites`,
+    deleteEmptySuitesEndpoint: `/api/${project}/suites/delete_empty`,
     postTestEndpoint: `/api/${project}/tests`,
     postAttachmentEndpoint: `/api/${project}/tests/:tid/attachment`,
     postIssueLinkEndpoint: `/api/${project}/ims/issues/link`,
@@ -190,6 +191,29 @@ export const uploadFile = async (testId, filePath, attachment) => {
     console.error('Error uploading file:', error);
   }
 };
+
+export async function deleteEmptySuites() {
+  if (DRY_RUN) return;
+  const endpoint = getTestomatioEndpoints().deleteEmptySuitesEndpoint;
+  try {
+    const response = await fetchWithRetry(() => fetch(`${host}${endpoint}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': jwtToken,
+      },
+    }));
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete empty suites: ${response.status} ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    logOutput('deleteEmptySuites:response', json);
+    return json;
+  } catch (error) {
+    console.error('Error deleting empty suites:', error);
+  }
+}
 
 async function fetchWithRetry(func, maxRetries = 3, retryDelay = 2000) {
   let retryCount = 0;
