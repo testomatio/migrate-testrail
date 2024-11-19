@@ -308,20 +308,20 @@ export default async function migrateTestCases() {
           const numValue = testCase[label];
           if (numValue === null || numValue === undefined) continue;
 
-          let value = numValue;
+          let values = Array.isArray(numValue) ? numValue : [numValue];
 
-          labelValuesMap[label]?.forEach(m => {
-            if (Array.isArray(numValue)) {
-              console.log('Array:', numValue);
-            }
-            if (m[0] == numValue.toString()) value = m[1].trim();
+          values = values.map(value => {
+            labelValuesMap[label]?.forEach(m => {
+              if (m[0] == value.toString()) value = m[1].trim();
+            });
+            return value;
           });
 
           try {
             await postToTestomatio(postLabelLinkEndpoint.replace(':lid', labelsMap[label]), null, {
               test_id: test.id,
               event: 'add',
-              value,
+              value: values.join('|'),
             });
           } catch (error) {
             console.error('Error adding label:', error);
