@@ -154,6 +154,7 @@ export default async function migrateTestCases() {
           title: section.name,
           description: section.description,
           position: section.display_order,
+          'file-type': 'file',
           'parent-id': parentId ?? testomatioSuite?.id,
         };
 
