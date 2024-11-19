@@ -174,6 +174,8 @@ export default async function migrateTestCases() {
 
       for (const testCase of testCases) {
 
+        if (test.id != 2225) continue;
+
         process.stdout.write('.');
 
         const caseCustomFieldNames = Object.keys(testCase).filter(key => key.startsWith('custom_'));
@@ -309,6 +311,9 @@ export default async function migrateTestCases() {
           let value = numValue;
 
           labelValuesMap[label]?.forEach(m => {
+            if (Array.isArray(numValue)) {
+              console.log('Array:', numValue);
+            }
             if (m[0] == numValue.toString()) value = m[1].trim();
           });
 
