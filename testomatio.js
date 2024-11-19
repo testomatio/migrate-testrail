@@ -16,6 +16,7 @@ export function getTestomatioEndpoints() {
   return {
     postSuiteEndpoint: `/api/${project}/suites`,
     deleteEmptySuitesEndpoint: `/api/${project}/suites/delete_empty`,
+    syncEndpoint: `/api/${project}/sync`,
     postTestEndpoint: `/api/${project}/tests`,
     postAttachmentEndpoint: `/api/${project}/tests/:tid/attachment`,
     postIssueLinkEndpoint: `/api/${project}/ims/issues/link`,
@@ -194,24 +195,23 @@ export const uploadFile = async (testId, filePath, attachment) => {
 
 export async function deleteEmptySuites() {
   if (DRY_RUN) return;
-  const endpoint = getTestomatioEndpoints().deleteEmptySuitesEndpoint;
   try {
-    const response = await fetchWithRetry(() => fetch(`${host}${endpoint}`, {
+    await fetch(`${host}${getTestomatioEndpoints().deleteEmptySuitesEndpoint}`, {
       method: 'DELETE',
       headers: {
         'Authorization': jwtToken,
       },
-    }));
+    });
 
-    if (!response.ok) {
-      throw new Error(`Failed to delete empty suites: ${response.status} ${response.statusText}`);
-    }
+    await fetch(`${host}${getTestomatioEndpoints().syncEndpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': jwtToken,
+      },
+    });
 
-    const json = await response.json();
-    logOutput('deleteEmptySuites:response', json);
-    return json;
   } catch (error) {
-    console.error('Error deleting empty suites:', error);
+    // console.error('Error deleting empty suites:', error);
   }
 }
 

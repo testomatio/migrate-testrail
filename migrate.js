@@ -54,7 +54,7 @@ export default async function migrateTestCases() {
     const fields = await fetchFromTestRail(getCaseFieldsEndpoint);
     console.log('CUSTOM FIELDS:', fields.length);
 
-    const labelFields = fields.filter(field => ['String', 'Integer', 'Checkbox', 'Dropdown'].includes(FIELD_TYPES[field.type_id]));
+    const labelFields = fields.filter(field => ['String', 'Integer', 'Checkbox', 'Dropdown', 'Multi-select'].includes(FIELD_TYPES[field.type_id]));
 
     let errorMigratingRefs = null;
     // maybe we already imported labels
@@ -325,14 +325,16 @@ export default async function migrateTestCases() {
       }
     }
 
-    console.log('Cleaning up empty suites...');
+    console.log('\nCleaning up empty suites...');
     await deleteEmptySuites();
+
+    if (errorMigratingRefs) {
+      console.error('We could not link Jira refs. Link Jira project in Settings > Jira and try to re-import tests');
+    }
 
     console.log('Done');
 
-    if (errorMigratingRefs) {
-      console.error('We could not link Jira Refs:', errorMigratingRefs?.message);
-    }
+
 
   } catch (error) {
     console.error(error);
