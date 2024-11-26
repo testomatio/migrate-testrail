@@ -414,12 +414,11 @@ function convertPriorities(priorities) {
 }
 
 function originId(item, suffix = '') {
-  try {
+  let url = 'nourl';
+  if (process.env.TESTRAIL_URL) {
     const testrailUrl = new URL(process.env.TESTRAIL_URL);
     const subdomain = testrailUrl.hostname.split('.')[0];
-    const url = `${subdomain}/${process.env.TESTRAIL_PROJECT_ID}`;
-    return `testrail/${url}/${item}/${suffix}`
-  } catch (err) {
-    console.error(err);
+    url = `${subdomain}/${process.env.TESTRAIL_PROJECT_ID}`;
   }
+  return `testrail/${url}/${item}/${suffix}`
 }
