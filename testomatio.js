@@ -68,7 +68,7 @@ export async function fetchFromTestomatio(endpoint) {
   return response.json();
 }
 
-export async function postToTestomatio(endpoint, type = null, data = {}) {
+export async function postToTestomatio(endpoint, type = null, data = {}, originId = null) {
   if (DRY_RUN) return;
   let response;
   logOutput('AccessToken', jwtToken);
@@ -94,7 +94,7 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
     return response.json();
   }
 
-  logOutput('postToTestomatio', `${host}/${endpoint}`, JSON.stringify({
+  logOutput('postToTestomatio', originId ? `id:${originId}` : '', `${host}/${endpoint}`, JSON.stringify({
     data: {
       attributes: data,
       type,
@@ -110,6 +110,7 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
       },
       body: JSON.stringify({
         data: {
+          origin_id: originId,
           attributes: data,
           type,
         }
@@ -123,7 +124,11 @@ export async function postToTestomatio(endpoint, type = null, data = {}) {
 
   const json = await response.json();
   logOutput('postToTestomatio:response', json);
-  return json.data;
+  const responseData = json.data;
+  if (!responseData) return;
+  responseData.alreadyReported = response.status === 208;
+  if (responseData.alreadyReported) logOutput('already reported');
+  return responseData;
 }
 
 export async function putToTestomatio(endpoint, type, id, data) {

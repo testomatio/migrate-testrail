@@ -134,7 +134,7 @@ export default async function migrateTestCases() {
         description: suite.description
       };
 
-      const testomatioSuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData);
+      const testomatioSuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData, originId(suite.id, 'suite'));
 
       const sectionsMap = {};
       const foldersIds = [];
@@ -163,7 +163,7 @@ export default async function migrateTestCases() {
           await putToTestomatio(postSuiteEndpoint, 'suites', parentId, { 'file-type': 'folder' });
         }
 
-        const postSectionResponse = await postToTestomatio(postSuiteEndpoint, 'suites', sectionData);
+        const postSectionResponse = await postToTestomatio(postSuiteEndpoint, 'suites', sectionData, originId(section.id));
 
         sectionsMap[section.id] = postSectionResponse?.id;
       }
@@ -173,23 +173,9 @@ export default async function migrateTestCases() {
 
       console.log('CASES:', testCases.length);
 
+
       for (const testCase of testCases) {
 
-        process.stdout.write('.');
-
-        const caseCustomFieldNames = Object.keys(testCase).filter(key => key.startsWith('custom_'));
-
-        const descriptionParts = [];
-
-        for (const fieldName of caseCustomFieldNames) {
-          descriptionParts.push(await fetchDescriptionFromTestCase(testCase, customFields[fieldName]));
-        }
-
-        let description = descriptionParts.filter(d => !!d).map(d => d.trim()).join('\n\n---\n\n');
-
-        description = formatCodeBlocks(description);
-
-        logData('description', descriptionParts);
 
         // select corresponding suite
         let suiteId = sectionsMap[testCase.section_id];
@@ -210,36 +196,43 @@ export default async function migrateTestCases() {
             position: 1,
             description: sections.find(s => s.id === suiteId)?.description
           };
-          const newSuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData);
+          const newSuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData, originId(suiteId, 'parent'));
           filesMap[suiteId] = newSuite.id;
           suiteId = newSuite.id;
         }
 
         const caseData = {
-          cid: `testrail/${testCase.id}`,
           title: testCase.title,
           priority: priorities[testCase.priority_id] || 0,
-          description,
           position: testCase.display_order,
           'suite-id': suiteId,
         };
 
-        const test = await postToTestomatio(postTestEndpoint, 'tests', caseData);
+        const test = await postToTestomatio(postTestEndpoint, 'tests', caseData, originId(testCase.id));
 
         if (!test) continue;
 
-        if (!test.attributes?.issues?.length) {
-          try {
-            await postToTestomatio(postIssueLinkEndpoint, null, {
-              test_id: test.id,
-              url: `${getTestRailUrl()}/cases/view/${testCase.id}`,
-            });
-          } catch (e) {
-            // not so important
-          }
+        if (test.alreadyReported) {
+          process.stdout.write('s');
+          continue;
         }
 
-        // cross link to testrail
+        process.stdout.write('.');
+
+        const caseCustomFieldNames = Object.keys(testCase).filter(key => key.startsWith('custom_'));
+
+        const descriptionParts = [];
+
+
+        logData('description', descriptionParts);
+
+        for (const fieldName of caseCustomFieldNames) {
+          descriptionParts.push(await fetchDescriptionFromTestCase(testCase, customFields[fieldName]));
+        }
+
+        let description = descriptionParts.filter(d => !!d).map(d => d.trim()).join('\n\n---\n\n');
+
+        description = formatCodeBlocks(description);
 
         const attachments = await fetchFromTestRail(`${getAttachmentsEndpoint}${testCase.id}`, 'attachments');
 
@@ -259,7 +252,6 @@ export default async function migrateTestCases() {
           }
           // if we have old links left, replace them with new ones
           description = description.replaceAll(`index.php?/attachments/get/${attachment.id}`, url);
-
 
           logData('description', description);
         }
@@ -336,9 +328,7 @@ export default async function migrateTestCases() {
       console.error('We could not link Jira refs. Link Jira project in Settings > Jira and try to re-import tests');
     }
 
-    console.log('Done');
-
-
+    console.log('<Done>');
 
   } catch (error) {
     console.error(error);
@@ -421,4 +411,15 @@ function convertPriorities(priorities) {
   });
 
   return convertedPriorities;
+}
+
+function originId(item, suffix = '') {
+  try {
+    const testrailUrl = new URL(process.env.TESTRAIL_URL);
+    const subdomain = testrailUrl.hostname.split('.')[0];
+    const url = `${subdomain}/${process.env.TESTRAIL_PROJECT_ID}`;
+    return `testrail/${url}/${item}/${suffix}`
+  } catch (err) {
+    console.error(err);
+  }
 }
