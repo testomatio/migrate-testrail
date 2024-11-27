@@ -263,6 +263,8 @@ export default async function migrateTestCases() {
         for (const attachmentId of otherAttachmentIds) {
           const file = await downloadFile(downloadAttachmentEndpoint + attachmentId);
 
+          if (!file) continue;
+
           const url = await uploadFile(test.id, file, { id: attachmentId });
 
           if (!url) continue;
