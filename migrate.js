@@ -365,6 +365,7 @@ function fetchDescriptionFromTestCase(testCase, field) {
           .filter(line => !!line)
           .map(line => {
             if (line.startsWith('- ')) line = line.slice(2).trim();
+            if (line.startsWith('* ')) line = line.slice(2).trim();
             return line;
           })
           .join('\n').trim();
