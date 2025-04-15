@@ -209,14 +209,14 @@ export default async function migrateTestCases() {
         };
 
         // set refs as tags
-        const uniqueRefs = [...new Set(testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref))];
+        const refs = [...new Set(testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref))];
 
         if (refs?.length) {
-          logData('refs', refs);          
+          logData('refs', refs);
           for (const ref of refs) {
             caseData.title += ` @${ref}`
           }
-        }              
+        }
 
         const test = await postToTestomatio(postTestEndpoint, 'tests', caseData, originId(testCase.id));
 
@@ -280,7 +280,7 @@ export default async function migrateTestCases() {
           if (!url) continue;
 
           description = description.replaceAll(`index.php?/attachments/get/${attachmentId}`, url);
-        }  
+        }
 
         await putToTestomatio(postTestEndpoint, 'tests', test.id, { description });
 
