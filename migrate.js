@@ -145,6 +145,7 @@ export default async function migrateTestCases() {
       console.log('SECTIONS:', sections.length);
       // should load sections without pagination
       for (const section of sections) {
+        if (!section) continue;
 
         process.stdout.write('.');
 
