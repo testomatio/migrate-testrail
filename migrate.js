@@ -197,9 +197,23 @@ export default async function migrateTestCases() {
             position: 1,
             description: sections.find(s => s.id === suiteId)?.description
           };
-          const newSuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData, originId(suiteId, 'parent'));
+          let newSuite;
+
+          newSuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData, originId(suiteId, 'parent'));
           filesMap[suiteId] = newSuite.id;
           suiteId = newSuite.id;
+
+          if (newSuite && newSuite.errors && newSuite.errors.toString && newSuite.errors.toString().includes('file suite')) {
+            suiteData['parent-id'] = null;
+            let retrySuite = await postToTestomatio(postSuiteEndpoint, 'suites', suiteData, originId(suiteId, 'parent'));
+            if (retrySuite && retrySuite.id) {
+              filesMap[suiteId] = retrySuite.id;
+              suiteId = retrySuite.id;
+              console.log(`Due to difference in structure suite ${title} was created in root folder. You can move it after import`);
+            } else {
+              console.error(`Failed to create suite ${title} in root folder after retry.`);
+            }
+          }
         }
 
         const caseData = {
