@@ -223,6 +223,16 @@ export default async function migrateTestCases() {
           'suite-id': suiteId,
         };
 
+        // set refs as tags
+        const refs = [...new Set(testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref))];
+
+        if (refs?.length) {
+          logData('refs', refs);
+          for (const ref of refs) {
+            caseData.title += ` @${ref}`
+          }
+        }
+
         const test = await postToTestomatio(postTestEndpoint, 'tests', caseData, originId(testCase.id));
 
         if (!test) continue;
@@ -288,27 +298,6 @@ export default async function migrateTestCases() {
         }
 
         await putToTestomatio(postTestEndpoint, 'tests', test.id, { description });
-
-        // refs
-        const refs = testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref);
-
-        if (refs?.length && !errorMigratingRefs) {
-          logData('refs', refs);
-          for (const ref of refs) {
-            try {
-              if (ref.startsWith('https://')) {
-                await postToTestomatio(postIssueLinkEndpoint, null, {
-                  test_id: test.id,
-                  url: ref,
-                });
-                continue;
-              }
-              await postToTestomatio(`${postJiraIssueEndpoint}?test_id=${test.id}&jira_id=${ref}`);
-            } catch (error) {
-              errorMigratingRefs = error;
-            }
-          }
-        }
 
         // labels
         const labels = Object.keys(testCase).filter(key => key.startsWith('custom_') && labelsMap[key]);
