@@ -323,6 +323,12 @@ export default async function migrateTestCases() {
       logData('description', descriptionParts);
 
       for (const fieldName of caseCustomFieldNames) {
+        if (testCase.template_id == 2 && (fieldName == 'custom_steps' || fieldName == 'custom_expected')) {
+          continue;
+        }
+        if (testCase.template_id == 1 && fieldName == 'custom_steps_separated') {
+          continue;
+        }
         descriptionParts.push(await fetchDescriptionFromTestCase(testCase, customFields[fieldName]));
       }
 
