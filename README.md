@@ -95,7 +95,7 @@ All cases must be imported before run migration started.
 
 * **Duplucation of steps in test cases**
 
-This is can happen if the template of the testcase changed and TestRail keeps data from both templates. Switch to branch `opt/template-fields-sync` to handle this case. See: https://github.com/testomatio/migrate-testrail/pull/6 
+This can happen if the template of the testcase changed and TestRail keeps data from both templates. Switch to branch `opt/template-fields-sync` to handle this case. See: https://github.com/testomatio/migrate-testrail/pull/6 
 
 ```
 git checkout opt/template-fields-sync
