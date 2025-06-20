@@ -75,6 +75,22 @@ DEBUG="*" TESTRAIL_CASE_ID=12345 npm start
 
 **Note:** It is important to use this feature for debugging or improving the script *after* an initial full migration has been performed. When `TESTRAIL_CASE_ID` is set, the script will only process that single test case and then exit.
 
+### Test Runs
+
+To migrate test runs with their results, you need to use a **Project-level API token** from Testomat.io. This is different from the personal API token used for migrating test cases. You can find this token in your project settings under the "API" section.
+
+Set the `TESTOMATIO_REPORT_TOKEN` environment variable to this value.
+
+Then, run the following command:
+
+```bash
+npm run migrate-run-results
+```
+
+This will migrate all test runs from the TestRail project specified in your `.env` file, along with their test results (passed, failed, skipped). It will skip runs that have already been imported by checking for a special `@id:<run_id>` tag in the run title.
+
+All cases must be imported before run migration started.
+
 ## License
 
 MIT

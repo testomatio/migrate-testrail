@@ -1,6 +1,6 @@
 import debug from 'debug';
 import { getTestRailUrl, getTestRailEndpoints, fetchFromTestRail, downloadFile } from './testrail.js';
-import { getTestomatioEndpoints, deleteEmptySuites, loginToTestomatio, uploadFile, fetchFromTestomatio, postToTestomatio, putToTestomatio } from './testomatio.js';
+import { originId, getTestomatioEndpoints, deleteEmptySuites, loginToTestomatio, uploadFile, fetchFromTestomatio, postToTestomatio, putToTestomatio } from './testomatio.js';
 
 const logData = debug('testomatio:testrail:migrate');
 
@@ -490,13 +490,4 @@ function convertPriorities(priorities) {
   return convertedPriorities;
 }
 
-function originId(item, suffix = '') {
-  let url = 'nourl';
-  if (process.env.TESTRAIL_URL) {
-    const testrailUrl = new URL(process.env.TESTRAIL_URL);
-    const subdomain = testrailUrl.hostname.split('.')[0];
-    url = `${subdomain}/${process.env.TESTRAIL_PROJECT_ID}`;
-  }
-  return `testrail/${url}/${item}/${suffix}`
-}
 

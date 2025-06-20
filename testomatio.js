@@ -24,6 +24,13 @@ export function getTestomatioEndpoints() {
     postJiraIssueEndpoint: `/api/${project}/jira/issues`,
     postLabelEndpoint: `/api/${project}/labels`,
     postLabelLinkEndpoint: `/api/${project}/labels/:lid/link`,
+    getRunsEndpoint: `/api/${project}/runs`,
+    postRunEndpoint: `/api/${project}/runs`,
+
+    // reporter endpoints
+    postReporterEndpoint: '/api/reporter',
+    putReporterEndpoint: '/api/reporter/:uid',
+    postReporterTestRunEndpoint: '/api/reporter/:uid/testrun',
   }
 }
 
@@ -166,6 +173,60 @@ export async function putToTestomatio(endpoint, type, id, data) {
   return json.data;
 }
 
+export async function postReportToTestomatio(endpoint, data) {
+  if (DRY_RUN) return;
+  if (!process.env.TESTOMATIO_REPORT_TOKEN) {
+    throw new Error('TESTOMATIO_REPORT_TOKEN is not set');
+  }
+
+  const url = `${host}${endpoint}?api_key=${process.env.TESTOMATIO_REPORT_TOKEN}`;
+  logOutput('postReportToTestomatio', url, JSON.stringify(data));
+
+  try {
+    const response = await fetchWithRetry(() => fetch(url, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }));
+
+    if (!response.ok) {
+      throw new Error(`Failed to send report data: ${response.status} ${response.statusText} ${await response.text()}`);
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error in postReportToTestomatio:', error);
+  }
+}
+
+export async function putReportToTestomatio(endpoint, data) {
+  if (DRY_RUN) return;
+  if (!process.env.TESTOMATIO_REPORT_TOKEN) {
+    throw new Error('TESTOMATIO_REPORT_TOKEN is not set');
+  }
+
+  const url = `${host}${endpoint}?api_key=${process.env.TESTOMATIO_REPORT_TOKEN}`;
+  logOutput('putReportToTestomatio', url, JSON.stringify(data));
+
+  try {
+    const response = await fetchWithRetry(() => fetch(url, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }));
+
+    if (!response.ok) {
+      throw new Error(`Failed to send report data: ${response.status} ${response.statusText} ${await response.text()}`);
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error in putReportToTestomatio:', error);
+  }
+}
+
 export const uploadFile = async (testId, filePath, attachment) => {
   if (DRY_RUN) return;
   if (!fs.existsSync(filePath)) {
@@ -221,6 +282,17 @@ export async function deleteEmptySuites() {
   }
 }
 
+export function originId(item, suffix = '') {
+  let url = 'nourl';
+  if (process.env.TESTRAIL_URL) {
+    const testrailUrl = new URL(process.env.TESTRAIL_URL);
+    const subdomain = testrailUrl.hostname.split('.')[0];
+    url = `${subdomain}/${process.env.TESTRAIL_PROJECT_ID}`;
+  }
+  return `testrail/${url}/${item}/${suffix}`
+}
+
+
 async function fetchWithRetry(func, maxRetries = 3, retryDelay = 2000) {
   let retryCount = 0;
   while (retryCount < maxRetries) {
@@ -243,3 +315,4 @@ async function fetchWithRetry(func, maxRetries = 3, retryDelay = 2000) {
     throw new Error(`Failed to send data: ${response.status} ${response.statusText} ${await response.text()}`);
   }
 }
+
