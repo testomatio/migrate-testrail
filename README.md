@@ -67,7 +67,13 @@ Run the script with the environment variable:
 TESTRAIL_CASE_ID=12345 npm start
 ```
 
-**Note:** It is recommended to use this feature for debugging or improving the script *after* an initial full migration has been performed. When `TESTRAIL_CASE_ID` is set, the script will only process that single test case and then exit.
+To debug importing of this test case add DEBUG flag:
+
+```
+DEBUG="*" TESTRAIL_CASE_ID=12345 npm start
+```
+
+**Note:** It is important to use this feature for debugging or improving the script *after* an initial full migration has been performed. When `TESTRAIL_CASE_ID` is set, the script will only process that single test case and then exit.
 
 ## License
 

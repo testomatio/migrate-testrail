@@ -27,6 +27,7 @@ export default async function migrateTestCases() {
     getSuiteEndpoint,
     getSectionsEndpoint,
     getCasesEndpoint,
+    getCaseEndpoint,
     getCaseFieldsEndpoint,
     getAttachmentsEndpoint,
     downloadAttachmentEndpoint,
@@ -40,6 +41,7 @@ export default async function migrateTestCases() {
     postIssueLinkEndpoint,
     postLabelEndpoint,
     postLabelLinkEndpoint,
+    getJiraProjectsEndpoint,
   } = getTestomatioEndpoints();
 
   try {
@@ -47,6 +49,11 @@ export default async function migrateTestCases() {
 
     const labelsMap = {};
     const labelValuesMap = {};
+    let refLabelId;
+
+    const jiraProjectsResponse = await fetchFromTestomatio(getJiraProjectsEndpoint);
+    const jiraProjectKeys = jiraProjectsResponse?.data?.map(p => p.attributes['project-key']) || [];
+    logData('Jira Project Keys', jiraProjectKeys);
 
     const priorities = convertPriorities(await fetchFromTestRail(getPrioritesEndpoint));
     logData('Priorities', priorities);
@@ -56,13 +63,16 @@ export default async function migrateTestCases() {
 
     const labelFields = fields.filter(field => ['String', 'Integer', 'Checkbox', 'Dropdown', 'Multi-select'].includes(FIELD_TYPES[field.type_id]));
 
-    let errorMigratingRefs = null;
     // maybe we already imported labels
     const prevLabels = {}
     const testomatioLabels = await fetchFromTestomatio(postLabelEndpoint);
     testomatioLabels?.data?.forEach(l => {
       prevLabels[l.attributes.title] = l.id;
     });
+
+    if (prevLabels.Ref) {
+      refLabelId = prevLabels.Ref;
+    }
 
     for (const field of labelFields) {
       logData(field);
@@ -117,6 +127,20 @@ export default async function migrateTestCases() {
     }, {});
 
     logData('customFields', customFields);
+
+    let testCase;
+
+    // migrate single test case
+    if (process.env.TESTRAIL_CASE_ID) {
+      testCase = (await fetchFromTestRail(`${getCaseEndpoint}${process.env.TESTRAIL_CASE_ID}`))[0];
+      console.log('TESTCASE:', testCase);
+      const test = await postToTestomatio(postTestEndpoint, 'tests', { title: testCase.title }, originId(testCase.id));
+      if (test) {
+        await updateTestCase(testCase, test);
+      }
+      console.log('<Done>');
+      return;
+    }
 
     // Get suites for the project
     let suites = [];
@@ -234,123 +258,158 @@ export default async function migrateTestCases() {
 
         process.stdout.write('.');
 
-        const caseCustomFieldNames = Object.keys(testCase).filter(key => key.startsWith('custom_'));
-
-        const descriptionParts = [];
-
-
-        logData('description', descriptionParts);
-
-        for (const fieldName of caseCustomFieldNames) {
-          descriptionParts.push(await fetchDescriptionFromTestCase(testCase, customFields[fieldName]));
-        }
-
-        let description = descriptionParts.filter(d => !!d).map(d => d.trim()).join('\n\n---\n\n');
-
-        description = formatCodeBlocks(description);
-
-        const attachments = await fetchFromTestRail(`${getAttachmentsEndpoint}${testCase.id}`, 'attachments');
-
-        logData('attachments', attachments);
-
-        for (const attachment of attachments) {
-          const file = await downloadFile(downloadAttachmentEndpoint + attachment.id);
-
-          const url = await uploadFile(test.id, file, attachment);
-
-          if (!url) continue;
-
-          if (attachment.is_image) {
-            description = description.replaceAll(`(index.php?/attachments/get/${attachment.id})`, `(${url})`)
-          } else {
-            description = description.replaceAll(`![](index.php?/attachments/get/${attachment.id})`, `[📎 ${attachment.name}](${url})`)
-          }
-          // if we have old links left, replace them with new ones
-          description = description.replaceAll(`index.php?/attachments/get/${attachment.id}`, url);
-
-          logData('description', description);
-        }
-
-        const otherAttachmentIds = Array.from(description.matchAll(/index\.php\?\/attachments\/get\/([\da-f-]+)/g)).map(m => m[1]);
-
-        if (otherAttachmentIds.length) logData('Extra attachments to upload:', otherAttachmentIds);
-
-        for (const attachmentId of otherAttachmentIds) {
-          const file = await downloadFile(downloadAttachmentEndpoint + attachmentId);
-
-          if (!file) continue;
-
-          const url = await uploadFile(test.id, file, { id: attachmentId });
-
-          if (!url) continue;
-
-          description = description.replaceAll(`index.php?/attachments/get/${attachmentId}`, url);
-        }
-
-        await putToTestomatio(postTestEndpoint, 'tests', test.id, { description });
-
-        // refs
-        const refs = testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref);
-
-        if (refs?.length && !errorMigratingRefs) {
-          logData('refs', refs);
-          for (const ref of refs) {
-            try {
-              if (ref.startsWith('https://')) {
-                await postToTestomatio(postIssueLinkEndpoint, null, {
-                  test_id: test.id,
-                  url: ref,
-                });
-                continue;
-              }
-              await postToTestomatio(`${postJiraIssueEndpoint}?test_id=${test.id}&jira_id=${ref}`);
-            } catch (error) {
-              errorMigratingRefs = error;
-            }
-          }
-        }
-
-        // labels
-        const labels = Object.keys(testCase).filter(key => key.startsWith('custom_') && labelsMap[key]);
-        for (const label of labels) {
-          const numValue = testCase[label];
-          if (numValue === null || numValue === undefined) continue;
-
-          let values = Array.isArray(numValue) ? numValue : [numValue];
-
-          values = values.map(value => {
-            labelValuesMap[label]?.forEach(m => {
-              if (m[0] == value.toString()) value = m[1].trim();
-            });
-            return value;
-          });
-
-          try {
-            await postToTestomatio(postLabelLinkEndpoint.replace(':lid', labelsMap[label]), null, {
-              test_id: test.id,
-              event: 'add',
-              value: values.join('|'),
-            });
-          } catch (error) {
-            console.error('Error adding label:', error);
-          }
-        }
+        await updateTestCase(testCase, test);
       }
     }
 
     console.log('\nCleaning up empty suites...');
     await deleteEmptySuites();
 
-    if (errorMigratingRefs) {
-      console.error('We could not link Jira refs. Link Jira project in Settings > Jira and try to re-import tests');
+    if (refLabelId) {
+      console.log('--------------------------------');
+      console.log('Refs were linked as labels. If you want to link them as Jira issues, configure Jira Projects in Settings > Jira');
+      console.log('And run this script again to re-import tests');
+      console.log('--------------------------------');
     }
 
     console.log('<Done>');
 
+    async function createRef(ref, testId) {
+      try {
+        if (ref.startsWith('https://')) {
+          logData('Creating ref as issue link', ref);
+          await postToTestomatio(postIssueLinkEndpoint, null, {
+            test_id: testId,
+            url: ref,
+          });
+          return;
+        }
+
+        const isJiraRef = jiraProjectKeys.some(key => ref.startsWith(`${key}-`));
+
+        if (isJiraRef) {
+          logData('Creating ref as Jira issue', ref);
+          await postToTestomatio(`${postJiraIssueEndpoint}?test_id=${testId}&jira_id=${ref}`);
+          return;
+        }
+
+        logData('Creating ref as label', ref);
+        if (!refLabelId) {
+          const labelData = await postToTestomatio(postLabelEndpoint, 'label', { title: 'Ref', scope: ['tests'], field: { type: 'string' } });
+          if (labelData?.id) {
+            refLabelId = labelData.id;
+          } else {
+            logData('Could not create Ref label for', ref);
+            return;
+          }
+        }
+
+        await postToTestomatio(postLabelLinkEndpoint.replace(':lid', refLabelId), null, {
+          test_id: testId,
+          event: 'add',
+          value: ref,
+        });
+        logData('Ref linked as label', ref);
+
+      } catch (error) {
+        logData('Could not process ref', ref, error);
+      }
+    }
+
+    async function updateTestCase(testCase, test) {
+      const caseCustomFieldNames = Object.keys(testCase).filter(key => key.startsWith('custom_'));
+      const descriptionParts = [];
+
+      logData('description', descriptionParts);
+
+      for (const fieldName of caseCustomFieldNames) {
+        descriptionParts.push(await fetchDescriptionFromTestCase(testCase, customFields[fieldName]));
+      }
+
+      let description = descriptionParts.filter(d => !!d).map(d => d.trim()).join('\n\n---\n\n');
+      description = formatCodeBlocks(description);
+
+      const attachments = await fetchFromTestRail(`${getAttachmentsEndpoint}${testCase.id}`, 'attachments');
+      console.log('ATTACHMENTS:', attachments.length);
+      logData('attachments', attachments);
+
+      for (const attachment of attachments) {
+        const file = await downloadFile(downloadAttachmentEndpoint + attachment.id);
+        const url = await uploadFile(test.id, file, attachment);
+
+        if (!url) continue;
+
+        if (attachment.is_image) {
+          description = description.replaceAll(`(index.php?/attachments/get/${attachment.id})`, `(${url})`)
+        } else {
+          description = description.replaceAll(`![](index.php?/attachments/get/${attachment.id})`, `[📎 ${attachment.name}](${url})`)
+        }
+        description = description.replaceAll(`index.php?/attachments/get/${attachment.id}`, url);
+        description = description.replaceAll(`index.php?/attachments/get/${attachment.cassandra_file_id}`, url);
+      }
+
+      const otherAttachmentIds = Array.from(description.matchAll(/index\.php\?\/attachments\/get\/([\da-f-]+)/g)).map(m => m[1]);
+      if (otherAttachmentIds.length) logData('Extra attachments to upload:', otherAttachmentIds);
+
+      for (const attachmentId of otherAttachmentIds) {
+        let file;
+        // if (attachmentId.includes('-')) {
+          // file = await downloadFile(downloadRawAttachmentEndpoint + attachmentId);
+        // } else {
+          file = await downloadFile(downloadAttachmentEndpoint + attachmentId);
+        // }
+        if (!file) continue;
+
+        const url = await uploadFile(test.id, file, { id: attachmentId });
+        if (!url) continue;
+
+        description = description.replaceAll(`index.php?/attachments/get/${attachmentId}`, url);
+      }
+
+      debug('description', description);
+
+      await putToTestomatio(postTestEndpoint, 'tests', test.id, { description });
+
+      // refs
+      const refs = testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref);
+
+      if (refs?.length) {
+        logData('refs', refs);
+        for (const ref of refs) {
+          await createRef(ref, test.id);
+        }
+      }
+
+      // labels
+      const labels = Object.keys(testCase).filter(key => key.startsWith('custom_') && labelsMap[key]);
+      for (const label of labels) {
+        const numValue = testCase[label];
+        if (numValue === null || numValue === undefined) continue;
+
+        let values = Array.isArray(numValue) ? numValue : [numValue];
+
+        values = values.map(value => {
+          labelValuesMap[label]?.forEach(m => {
+            if (m[0] == value.toString()) value = m[1].trim();
+          });
+          return value;
+        });
+
+        try {
+          await postToTestomatio(postLabelLinkEndpoint.replace(':lid', labelsMap[label]), null, {
+            test_id: test.id,
+            event: 'add',
+            value: values.join('|'),
+          });
+        } catch (error) {
+          console.error('Error adding label:', error);
+        }
+      }
+    }
+
   } catch (error) {
     console.error(error);
   }
-
 }
 
 function fetchDescriptionFromTestCase(testCase, field) {
@@ -391,7 +450,7 @@ function fetchDescriptionFromTestCase(testCase, field) {
 
     if (!text) return '';
     return `## ${field.label}\n\n${text.trim()}`;
-  }
+  }  
 }
 
 function formatCodeBlocks(description) {
@@ -440,3 +499,4 @@ function originId(item, suffix = '') {
   }
   return `testrail/${url}/${item}/${suffix}`
 }
+
