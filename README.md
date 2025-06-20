@@ -91,6 +91,19 @@ This will migrate all test runs from the TestRail project specified in your `.en
 
 All cases must be imported before run migration started.
 
+## Troubleshooting
+
+* **Duplucation of steps in test cases**
+
+This is can happen if the template of the testcase changed and TestRail keeps data from both templates. Switch to branch `opt/template-fields-sync` to handle this case. See: https://github.com/testomatio/migrate-testrail/pull/6 
+
+```
+git checkout opt/template-fields-sync
+npm statr
+```
+
+
 ## License
 
 MIT
+
