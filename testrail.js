@@ -17,9 +17,11 @@ export function getTestRailEndpoints() {
     getSuitesEndpoint: '/api/v2/get_suites/'+projectId, // Requires project ID
     getSectionsEndpoint: '/api/v2/get_sections/'+projectId, // Requires project ID
     getCasesEndpoint: '/api/v2/get_cases/'+projectId, // Requires project ID and suite ID
+    getCaseEndpoint: '/api/v2/get_case/', // Requires test case ID
     getCaseFieldsEndpoint: '/api/v2/get_case_fields/'+projectId, // Requires project ID
     getAttachmentsEndpoint: '/api/v2/get_attachments_for_case/', // Requires test case ID
     downloadAttachmentEndpoint: '/api/v2/get_attachment/',
+    downloadRawAttachmentEndpoint: '/attachments/get/',
     getSuiteEndpoint: '/api/v2/get_suite/', // Requires suite ID
     getPrioritesEndpoint: '/api/v2/get_priorities',
   }

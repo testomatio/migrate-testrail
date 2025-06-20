@@ -58,6 +58,17 @@ Update `migrate.js` script to customize how sections, suites, and cases are obta
 
 Update the following file and run the script.
 
+### Importing a Single Test Case
+
+For debugging purposes, you can import or re-import a single test case from TestRail by setting the `TESTRAIL_CASE_ID` environment variable. This is useful when you want to test or refine the migration process for a specific test case that might not have been imported correctly during a full migration.
+
+Run the script with the environment variable:
+```
+TESTRAIL_CASE_ID=12345 npm start
+```
+
+**Note:** It is recommended to use this feature for debugging or improving the script *after* an initial full migration has been performed. When `TESTRAIL_CASE_ID` is set, the script will only process that single test case and then exit.
+
 ## License
 
 MIT

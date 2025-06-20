@@ -18,6 +18,7 @@ export function getTestomatioEndpoints() {
     deleteEmptySuitesEndpoint: `/api/${project}/suites/delete_empty`,
     syncEndpoint: `/api/${project}/sync`,
     postTestEndpoint: `/api/${project}/tests`,
+    getJiraProjectsEndpoint: `/api/${project}/jira/projects`,
     postAttachmentEndpoint: `/api/${project}/tests/:tid/attachment`,
     postIssueLinkEndpoint: `/api/${project}/ims/issues/link`,
     postJiraIssueEndpoint: `/api/${project}/jira/issues`,
@@ -68,7 +69,7 @@ export async function fetchFromTestomatio(endpoint) {
   return response.json();
 }
 
-export async function postToTestomatio(endpoint, type = null, data = {}, originId = null) {
+export async function postToTestomatio(endpoint, type = null, data = {}, originId = null, showError = true) {
   if (DRY_RUN) return;
   let response;
   logOutput('AccessToken', jwtToken);
