@@ -44,6 +44,9 @@ export default async function migrateTestCases() {
     getJiraProjectsEndpoint,
   } = getTestomatioEndpoints();
 
+  // Track tests with failed attachment uploads
+  const testsWithFailedAttachments = new Set();
+
   try {
     await loginToTestomatio();
 
@@ -133,10 +136,20 @@ export default async function migrateTestCases() {
     // migrate single test case
     if (process.env.TESTRAIL_CASE_ID) {
       testCase = (await fetchFromTestRail(`${getCaseEndpoint}${process.env.TESTRAIL_CASE_ID}`))[0];
+      if (!testCase) {
+        console.log(`TestRail Case ${process.env.TESTRAIL_CASE_ID} not found. Please check if the case exists in this project.`);
+        return;
+      }
       console.log('TESTCASE:', testCase);
       const test = await postToTestomatio(postTestEndpoint, 'tests', { title: testCase.title }, originId(testCase.id));
       if (test) {
         await updateTestCase(testCase, test);
+      } else {
+        console.log('TEST not found in Testomat.io. Please migrate all project first');
+        return;
+      }
+      if (testsWithFailedAttachments.size > 0) {
+        console.log('There were failed attachment uploads for this test. Please check the logs');
       }
       console.log('<Done>');
       return;
@@ -274,6 +287,18 @@ export default async function migrateTestCases() {
 
     console.log('<Done>');
 
+    // Print list of tests with failed attachment uploads
+    if (testsWithFailedAttachments.size > 0) {
+      console.log('\n================================');
+      console.log('TESTS WITH FAILED ATTACHMENT UPLOADS:');
+      console.log('================================');
+      const failedTestsList = Array.from(testsWithFailedAttachments);
+      failedTestsList.forEach((testUrl, index) => {
+        console.log(`${index + 1}. ${testUrl}`);
+      });
+      console.log('================================');
+    }
+
     async function createRef(ref, testId) {
       try {
         if (ref.startsWith('https://')) {
@@ -329,44 +354,60 @@ export default async function migrateTestCases() {
       let description = descriptionParts.filter(d => !!d).map(d => d.trim()).join('\n\n---\n\n');
       description = formatCodeBlocks(description);
 
-      const attachments = await fetchFromTestRail(`${getAttachmentsEndpoint}${testCase.id}`, 'attachments');
-      console.log('ATTACHMENTS:', attachments.length);
-      logData('attachments', attachments);
-
-      for (const attachment of attachments) {
-        const file = await downloadFile(downloadAttachmentEndpoint + attachment.id);
-        const url = await uploadFile(test.id, file, attachment);
-
-        if (!url) continue;
-
-        if (attachment.is_image) {
-          description = description.replaceAll(`(index.php?/attachments/get/${attachment.id})`, `(${url})`)
-        } else {
-          description = description.replaceAll(`![](index.php?/attachments/get/${attachment.id})`, `[📎 ${attachment.name}](${url})`)
+            // Helper function to download, upload, and replace attachment in description
+      async function processAttachment(attachmentId, attachmentData = null) {
+        attachmentData = attachmentData || { id: attachmentId };
+        
+        const file = await downloadFile(downloadAttachmentEndpoint + attachmentId);
+        if (!file) {
+          testsWithFailedAttachments.add(test.attributes['to-url']);
+          return;
         }
-        description = description.replaceAll(`index.php?/attachments/get/${attachment.id}`, url);
-        description = description.replaceAll(`index.php?/attachments/get/${attachment.cassandra_file_id}`, url);
+
+        const url = await uploadFile(test.id, file, attachmentData);
+        if (!url) {
+          testsWithFailedAttachments.add(test.attributes['to-url']);
+          return;
+        }
+
+        // Handle image vs non-image attachments (only for API attachments with full data)
+        if (attachmentData.is_image) {
+          description = description.replaceAll(`(index.php?/attachments/get/${attachmentId})`, `(${url})`);
+        } else if (attachmentData.name) {
+          description = description.replaceAll(`![](index.php?/attachments/get/${attachmentId})`, `[📎 ${attachmentData.name}](${url})`);
+        }
+
+        // Handle full URL replacements
+        const host = process.env.TESTOMATIO_HOST || 'https://app.testomat.io';
+        description = description.replace(new RegExp(`https?:\\/\\/[^\\/]+\\/(index\\.php\\?\\/attachments\\/get\\/${attachmentId})`, 'g'), `${host}$1`);
+        
+        // Handle cassandra_file_id if present
+        if (attachmentData.cassandra_file_id) {
+          description = description.replace(new RegExp(`https?:\\/\\/[^\\/]+\\/(index\\.php\\?\\/attachments\\/get\\/${attachmentData.cassandra_file_id})`, 'g'), `${host}$1`);
+          description = description.replaceAll(`index.php?/attachments/get/${attachmentData.cassandra_file_id}`, url);
+        }
+
+        // Replace basic attachment references
+        description = description.replaceAll(`index.php?/attachments/get/${attachmentId}`, url);
       }
 
+      const attachments = await fetchFromTestRail(`${getAttachmentsEndpoint}${testCase.id}`, 'attachments');
+      logData('attachments', attachments);
+
+      // Process known attachments from API
+      for (const attachment of attachments) {
+        await processAttachment(attachment.id, attachment);
+      }
+
+      // Process additional attachments found in description
       const otherAttachmentIds = Array.from(description.matchAll(/index\.php\?\/attachments\/get\/([\da-f-]+)/g)).map(m => m[1]);
       if (otherAttachmentIds.length) logData('Extra attachments to upload:', otherAttachmentIds);
 
       for (const attachmentId of otherAttachmentIds) {
-        let file;
-        // if (attachmentId.includes('-')) {
-          // file = await downloadFile(downloadRawAttachmentEndpoint + attachmentId);
-        // } else {
-          file = await downloadFile(downloadAttachmentEndpoint + attachmentId);
-        // }
-        if (!file) continue;
-
-        const url = await uploadFile(test.id, file, { id: attachmentId });
-        if (!url) continue;
-
-        description = description.replaceAll(`index.php?/attachments/get/${attachmentId}`, url);
+        await processAttachment(attachmentId);
       }
 
-      debug('description', description);
+      logData('description', description);
 
       await putToTestomatio(postTestEndpoint, 'tests', test.id, { description });
 

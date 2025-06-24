@@ -1,6 +1,10 @@
-import { getTestRailEndpoints, fetchFromTestRail } from './testrail.js';
+import { getTestRailEndpoints, fetchFromTestRail, downloadFile } from './testrail.js';
 import { loginToTestomatio, getTestomatioEndpoints, postToTestomatio, fetchFromTestomatio, postReportToTestomatio, putReportToTestomatio, originId } from './testomatio.js';
 import { pathToFileURL } from 'url';
+import { S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import fs from 'fs';
+import path from 'path';
 
 const STATUS_MAP = {
   1: 'passed',
@@ -10,8 +14,54 @@ const STATUS_MAP = {
   5: 'failed',
 };
 
+let s3Client;
+
+async function uploadToS3(filePath, fileName) {
+  if (!s3Client && process.env.S3_ACCESS_KEY_ID && process.env.S3_BUCKET) {
+      s3Client = new S3Client({
+      region: process.env.S3_REGION || 'us-east-1',
+      endpoint: process.env.S3_ENDPOINT, // Optional custom endpoint (e.g., for MinIO, DigitalOcean Spaces, etc.)
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY_ID,
+        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+
+  if (!s3Client) {
+    console.log('S3 client not configured, skipping upload');
+    return null;
+  }
+
+  try {
+    const fileContent = fs.readFileSync(filePath);
+    const key = `testrail-attachments/${fileName}`;
+    
+    const upload = new Upload({
+      client: s3Client,
+      params: {
+        Bucket: process.env.S3_BUCKET,
+        Key: key,
+        Body: fileContent,
+        ACL: 'private',
+      },
+    });
+
+    const response = await upload.done();
+
+    // Get the actual S3 URL from the response
+    let s3Location = response?.Location?.trim()
+
+    return s3Location;
+  } catch (error) {
+    console.error(`Error uploading ${filePath} to S3:`, error);
+    return null;
+  }
+}
+
 async function postTestRunToTestomatio(run, tests) {
   const { postTestEndpoint, postReporterEndpoint, postReporterTestRunEndpoint, putReporterEndpoint } = getTestomatioEndpoints();
+  const { downloadAttachmentEndpoint } = getTestRailEndpoints();  
   const title = `${run.name} @id:${run.id}`;
   const testomatioRun = await postReportToTestomatio(postReporterEndpoint, { description: run.description, title });
 
@@ -29,6 +79,31 @@ async function postTestRunToTestomatio(run, tests) {
       continue;
     }
 
+    // Fetch, download and upload attachments for this test
+    const artifacts = [];
+    try {
+      let attachments = await fetchFromTestRail(`/api/v2/get_attachments_for_test/${reportTest.id}`);
+    
+      for (const attachment of attachments) {
+        let filePath;
+        try {
+          filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id);
+          if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id);
+        
+          if (!filePath) {
+            throw new Error(`Failed to download attachment ${attachment.name}`);
+          }
+          const s3Url = await uploadToS3(filePath, testomatioRun.uid + '/' + attachment.filename);
+          if (s3Url) artifacts.push(s3Url);
+        } catch (downloadError) {
+          console.log(`Failed to download attachment ${attachment.name}:`, downloadError.message);
+        }
+      }
+    } catch (error) {
+      console.log(`Error fetching attachments for test ${reportTest.title}: ${JSON.stringify(reportTest)}`, error.message);
+    }
+    console.log(artifacts);
+
     const test = await postToTestomatio(postTestEndpoint, 'tests', {}, originId(reportTest.case_id));
     if (!test) {
       process.stdout.write('x');
@@ -38,13 +113,14 @@ async function postTestRunToTestomatio(run, tests) {
       status,
       rid: reportTest.id,
       title: reportTest.title,
+      artifacts,
     };
 
     if (test) {
       testData.test_id = test.id;
     }
 
-    await postReportToTestomatio(postReporterTestRunEndpoint.replace(':uid', testomatioRun.uid), testData);
+    const res = await postReportToTestomatio(postReporterTestRunEndpoint.replace(':uid', testomatioRun.uid), testData);
     process.stdout.write('.');
   }
 
@@ -55,12 +131,7 @@ async function postTestRunToTestomatio(run, tests) {
 
 export default async function migrateTestRuns() {
   const { postRunEndpoint } = getTestomatioEndpoints();
-  // API endpoints
-  const {
-    getRunsEndpoint,
-  } = {
-    getRunsEndpoint: '/api/v2/get_runs/' + process.env.TESTRAIL_PROJECT_ID,
-  };
+  const { getRunsEndpoint } = getTestRailEndpoints();
 
   try {
     await loginToTestomatio();
@@ -85,10 +156,7 @@ export default async function migrateTestRuns() {
         console.log(`Run ${run.name} (${run.id}) already exists in Testomat.io, skipping.`);
         continue;
       }
-      // Fetch tests for this run
       const tests = await fetchFromTestRail(`/api/v2/get_tests/${run.id}`, 'tests');
-      // Fetch results for this run (optional, can be implemented later)
-      // const results = await fetchFromTestRail(`/api/v2/get_results_for_run/${run.id}`, 'results');
       await postTestRunToTestomatio(run, tests);
     }
 
