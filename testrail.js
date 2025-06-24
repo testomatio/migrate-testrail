@@ -24,6 +24,7 @@ export function getTestRailEndpoints() {
     downloadRawAttachmentEndpoint: '/attachments/get/',
     getSuiteEndpoint: '/api/v2/get_suite/', // Requires suite ID
     getPrioritesEndpoint: '/api/v2/get_priorities',
+    getRunsEndpoint: '/api/v2/get_runs/'+projectId+'&order=desc&group_order=desc',
   }
 }
 
@@ -76,7 +77,7 @@ export async function fetchFromTestRail(endpoint, type = null) {
     fetchUrl = data?._links?.next;
   } while (fetchUrl);
 
-  return items;
+  return items.filter(item => !!item);
 }
 
 export async function downloadFile(url) {

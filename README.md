@@ -79,7 +79,7 @@ DEBUG="*" TESTRAIL_CASE_ID=12345 npm start
 
 To migrate test runs with their results, you need to use a **Project-level API token** from Testomat.io. This is different from the personal API token used for migrating test cases. You can find this token in your project settings under the "API" section.
 
-Set the `TESTOMATIO_REPORT_TOKEN` environment variable to this value.
+Select the project you are uploading data to, and set its `TESTOMATIO_REPORT_TOKEN` environment variable to this value.
 
 Then, run the following command:
 
@@ -91,6 +91,32 @@ This will migrate all test runs from the TestRail project specified in your `.en
 
 All cases must be imported before run migration started.
 
+To upload artifacts, create S3 bucket and add corresponding S3 credentials to .env file:
+
+```
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_REGION=
+S3_BUCKET=
+
+# provide endpoint if you don't use AWS
+S3_ENDPOINT=
+```
+
+Also inside Project Settings, [set the same S3 credentials](https://docs.testomat.io/project/runs/reporter/artifacts/#set-up-s3-bucket) to ensure that artifacts will be visible by Testomat.io from inside project. 
+## Troubleshooting
+
+* **Duplucation of steps in test cases**
+
+This can happen if the template of the testcase changed and TestRail keeps data from both templates. Switch to branch `opt/template-fields-sync` to handle this case. See: https://github.com/testomatio/migrate-testrail/pull/6 
+
+```
+git checkout opt/template-fields-sync
+npm statr
+```
+
+
 ## License
 
 MIT
+
