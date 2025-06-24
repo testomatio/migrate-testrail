@@ -104,7 +104,19 @@ S3_ENDPOINT=
 ```
 
 Also inside Project Settings, [set the same S3 credentials](https://docs.testomat.io/project/runs/reporter/artifacts/#set-up-s3-bucket) to ensure that artifacts will be visible by Testomat.io from inside project. 
+## Troubleshooting
+
+* **Duplucation of steps in test cases**
+
+This can happen if the template of the testcase changed and TestRail keeps data from both templates. Switch to branch `opt/template-fields-sync` to handle this case. See: https://github.com/testomatio/migrate-testrail/pull/6 
+
+```
+git checkout opt/template-fields-sync
+npm statr
+```
+
 
 ## License
 
 MIT
+
