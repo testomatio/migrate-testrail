@@ -4,7 +4,9 @@ import { pathToFileURL } from 'url';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import fs from 'fs';
-import path from 'path';
+
+let s3Client;
+let statuses;
 
 const STATUS_MAP = {
   1: 'passed',
@@ -13,8 +15,6 @@ const STATUS_MAP = {
   4: 'skipped', // Retest
   5: 'failed',
 };
-
-let s3Client;
 
 async function uploadToS3(filePath, fileName) {
   if (!s3Client && process.env.S3_ACCESS_KEY_ID && process.env.S3_BUCKET) {
@@ -59,9 +59,21 @@ async function uploadToS3(filePath, fileName) {
   }
 }
 
+async function getStatuses() {
+  const statusHash = {};
+  const statuses = await fetchFromTestRail('/api/v2/get_statuses');
+  for (const status of statuses) {
+    statusHash[status.id] = status.name;
+  }
+  return statusHash;
+}
+
 async function postTestRunToTestomatio(run, tests) {
   const { postTestEndpoint, postReporterEndpoint, postReporterTestRunEndpoint, putReporterEndpoint } = getTestomatioEndpoints();
-  const { downloadAttachmentEndpoint } = getTestRailEndpoints();  
+  const { downloadAttachmentEndpoint } = getTestRailEndpoints();
+  if (!statuses) {
+    statuses = await getStatuses();
+  }
   const title = `${run.name} @id:${run.id}`;
   const testomatioRun = await postReportToTestomatio(postReporterEndpoint, { description: run.description, title });
 
@@ -73,30 +85,44 @@ async function postTestRunToTestomatio(run, tests) {
   console.log(`> Created run ${testomatioRun.uid} for ${run.name}`);
 
   for (const reportTest of tests) {
-    const status = STATUS_MAP[reportTest.status_id];
-    if (!status) {
-      console.log(`Unknown status ${reportTest.status_id} for test ${reportTest.title}, skipping`);
-      continue;
+    let status = statuses[reportTest.status_id];
+
+    // skipping unknown statuses
+    if (!['passed', 'skipped', 'failed'].includes(status)) {
+      status = 'skipped';
     }
+
+    const result = await fetchFromTestRail(`/api/v2/get_results/${reportTest.id}`);
+    const message = result[0].results.filter(r => r.comment).map(r => r.comment).join('\n') || null;
+    const steps = result[0].results.filter(r => r.custom_step_results)
+      .map(r => customStepsToAnsi(r.custom_step_results)).flat() || [];
 
     // Fetch, download and upload attachments for this test
     const artifacts = [];
     try {
-      let attachments = await fetchFromTestRail(`/api/v2/get_attachments_for_test/${reportTest.id}`);
+      let attachments = await fetchFromTestRail(`/api/v2/get_attachments_for_test/${reportTest.id}`);      
       // remove duplicates
       attachments = Array.from(new Map(attachments.map(a => [a.id, a])).values());
 
       for (const attachment of attachments) {
+        steps.filter(step => step?.log).forEach(step => {
+          step.error = step?.error?.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachment.filename);
+          step.error = step?.error?.replaceAll('![]', '');
+          step.log = step.log.replaceAll(`index.php?/attachments/get/${attachment.id}`, `\u001b[1m${attachment.filename}\u001b[0m`);
+          step.log = step.log.replaceAll('![]', '');
+        });
+
         let filePath;
         try {
           filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id);
           if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id);
-        
+
           if (!filePath) {
             throw new Error(`Failed to download attachment ${attachment.name}`);
           }
           const s3Url = await uploadToS3(filePath, testomatioRun.uid + '/' + attachment.filename);
           if (s3Url) artifacts.push(s3Url);
+          // we can't display attachment in markdown, so we replace it with filename
         } catch (downloadError) {
           console.log(`Failed to download attachment ${attachment.name}:`, downloadError.message);
         }
@@ -114,6 +140,8 @@ async function postTestRunToTestomatio(run, tests) {
       status,
       rid: reportTest.id,
       title: reportTest.title,
+      message,
+      steps,
       artifacts,
     };
 
@@ -190,4 +218,24 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.error(error);
     }
   })();
-} 
+}
+
+function customStepsToAnsi(steps, indent = 0) {
+  const indentStr = ' '.repeat(indent * 2);
+  return steps.map((step, idx) => {
+    const title = step.content;
+    let log = '';
+    let error = null;
+    if (step.status_id && statuses) {
+      const status = statuses[step.status_id];
+      if ((status === 'failed' || status === 'blocked') && step.actual) {
+        error = "Actual: " + step.actual;
+      }
+      log += `${indentStr}  Status: ${status}\n`;
+    }
+    if (step.expected) log += `Expected: ${step.expected}\n`;
+    if (step.actual) log += `Actual: ${step.actual}\n`;
+    return { title, log, error, category: 'user' };
+  });
+}
+
