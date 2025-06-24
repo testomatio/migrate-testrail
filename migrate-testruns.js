@@ -83,7 +83,9 @@ async function postTestRunToTestomatio(run, tests) {
     const artifacts = [];
     try {
       let attachments = await fetchFromTestRail(`/api/v2/get_attachments_for_test/${reportTest.id}`);
-    
+      // remove duplicates
+      attachments = Array.from(new Map(attachments.map(a => [a.id, a])).values());
+
       for (const attachment of attachments) {
         let filePath;
         try {
@@ -102,7 +104,6 @@ async function postTestRunToTestomatio(run, tests) {
     } catch (error) {
       console.log(`Error fetching attachments for test ${reportTest.title}: ${JSON.stringify(reportTest)}`, error.message);
     }
-    console.log(artifacts);
 
     const test = await postToTestomatio(postTestEndpoint, 'tests', {}, originId(reportTest.case_id));
     if (!test) {
