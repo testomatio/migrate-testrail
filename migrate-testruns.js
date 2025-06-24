@@ -102,7 +102,6 @@ async function postTestRunToTestomatio(run, tests) {
     } catch (error) {
       console.log(`Error fetching attachments for test ${reportTest.title}: ${JSON.stringify(reportTest)}`, error.message);
     }
-    console.log(artifacts);
 
     const test = await postToTestomatio(postTestEndpoint, 'tests', {}, originId(reportTest.case_id));
     if (!test) {
