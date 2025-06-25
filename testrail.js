@@ -81,7 +81,7 @@ export async function fetchFromTestRail(endpoint, type = null) {
   return items.filter(item => !!item);
 }
 
-export async function downloadFile(url, filename = null) {
+export async function downloadFile(url) {
   try {
     logInput(`Downloading file ${baseUrl + url}`);
     const response = await fetch(baseUrl + url, {
@@ -94,11 +94,9 @@ export async function downloadFile(url, filename = null) {
       throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
     }
 
-    if (!filename) {
-      filename = crypto.createHash('sha1').update(url).digest('hex');
-    }
+    const fileHash = crypto.createHash('sha1').update(url).digest('hex');
 
-    const tempFilePath = path.join(tmpdir(),`download-testrail-${filename}`);
+    const tempFilePath = path.join(tmpdir(),`download-testrail-${fileHash}`);
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }

@@ -116,8 +116,8 @@ async function postTestRunToTestomatio(run, tests) {
 
         let filePath;
         try {
-          filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id, attachment.filename, attachment.id);
-          if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id, attachment.cassandra_file_id);
+          filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id);
+          if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id);
 
           if (!filePath) {
             throw new Error(`Failed to download attachment ${attachment.name}`);
