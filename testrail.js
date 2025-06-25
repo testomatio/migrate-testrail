@@ -4,6 +4,7 @@ import { tmpdir } from 'os';
 import debug from 'debug';
 import { Readable } from 'stream';
 import { finished } from 'stream/promises';
+import crypto from 'crypto';
 
 const logInput = debug('testomatio:testrail:in');
 
@@ -80,7 +81,7 @@ export async function fetchFromTestRail(endpoint, type = null) {
   return items.filter(item => !!item);
 }
 
-export async function downloadFile(url) {
+export async function downloadFile(url, filename = null) {
   try {
     logInput(`Downloading file ${baseUrl + url}`);
     const response = await fetch(baseUrl + url, {
@@ -93,7 +94,11 @@ export async function downloadFile(url) {
       throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
     }
 
-    const tempFilePath = path.join(tmpdir(),`download-testrail-${url.split('/').pop()}`);
+    if (!filename) {
+      filename = crypto.createHash('sha1').update(url).digest('hex');
+    }
+
+    const tempFilePath = path.join(tmpdir(),`download-testrail-${filename}`);
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
