@@ -93,7 +93,7 @@ async function postTestRunToTestomatio(run, tests) {
     }
 
     const result = await fetchFromTestRail(`/api/v2/get_results/${reportTest.id}`);
-    const message = result[0].results.filter(r => r.comment).map(r => r.comment).join('\n') || null;
+    let message = result[0].results.filter(r => r.comment).map(r => r.comment).join('\n') || null;
     const steps = result[0].results.filter(r => r.custom_step_results)
       .map(r => customStepsToAnsi(r.custom_step_results)).flat() || [];
 
@@ -104,25 +104,34 @@ async function postTestRunToTestomatio(run, tests) {
       // remove duplicates
       attachments = Array.from(new Map(attachments.map(a => [a.id, a])).values());
 
+      let title = reportTest.title || 'Unknown TestCase';
+      let index = 0;
       for (const attachment of attachments) {
+        index++;
+        const attachmentName = `${index}_${attachment.filename}`;
+        title = title.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+        title = title.replaceAll(/!\[.*?\]/g, '');
+        message = message.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+        message = message.replaceAll(/!\[.*?\]/g, '');
         steps.filter(step => step?.log).forEach(step => {
-          step.error = step?.error?.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachment.filename);
-          step.error = step?.error?.replaceAll('![]', '');
-          step.log = step.log.replaceAll(`index.php?/attachments/get/${attachment.id}`, `\u001b[1m${attachment.filename}\u001b[0m`);
-          step.log = step.log.replaceAll('![]', '');
-          step.title = step.title.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachment.filename);
-          step.title = step.title.replaceAll('![]', '');
+          step.error = step?.error?.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+          step.error = step?.error?.replaceAll(/!\[.*?\]/g, '');
+          step.log = step.log.replaceAll(`index.php?/attachments/get/${attachment.id}`, `\u001b[1m${attachmentName}\u001b[0m`);
+          step.log = step.log.replaceAll(/!\[.*?\]/g, '');
+          step.title = step.title.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+          step.title = step.title.replaceAll(/!\[.*?\]/g, '');
         });
 
         let filePath;
         try {
-          filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id);
-          if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id);
+          const downloadName = `${attachment.id}_${attachment.cassandra_file_id}_${attachmentName}`;
+          filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id, downloadName);
+          if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id, downloadName);
 
           if (!filePath) {
             throw new Error(`Failed to download attachment ${attachment.name}`);
           }
-          const s3Url = await uploadToS3(filePath, testomatioRun.uid + '/' + attachment.filename);
+          const s3Url = await uploadToS3(filePath, testomatioRun.uid + '/' + attachmentName);
           if (s3Url) artifacts.push(s3Url);
           // we can't display attachment in markdown, so we replace it with filename
         } catch (downloadError) {
@@ -141,7 +150,7 @@ async function postTestRunToTestomatio(run, tests) {
     const testData = {
       status,
       rid: reportTest.id,
-      title: reportTest.title,
+      title: title,
       message,
       steps,
       artifacts,
