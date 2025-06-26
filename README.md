@@ -104,6 +104,13 @@ S3_ENDPOINT=
 ```
 
 Also inside Project Settings, [set the same S3 credentials](https://docs.testomat.io/project/runs/reporter/artifacts/#set-up-s3-bucket) to ensure that artifacts will be visible by Testomat.io from inside project. 
+
+To process only one specific run add `TESTRAIL_RUN_ID` env variable:
+
+```
+TESTRAIL_RUN_ID=
+```
+
 ## Troubleshooting
 
 * **Duplucation of steps in test cases**

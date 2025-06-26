@@ -111,15 +111,17 @@ async function postTestRunToTestomatio(run, tests) {
         const attachmentName = `${index}_${attachment.filename}`;
         title = title.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
         title = title.replaceAll(/!\[.*?\]/g, '');
-        message = message.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
-        message = message.replaceAll(/!\[.*?\]/g, '');
+        if (message) {
+          message = message.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+          message = message.replaceAll(/!\[.*?\]/g, '');
+        }
         steps.filter(step => step?.log).forEach(step => {
-          step.error = step?.error?.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
-          step.error = step?.error?.replaceAll(/!\[.*?\]/g, '');
           step.log = step.log.replaceAll(`index.php?/attachments/get/${attachment.id}`, `\u001b[1m${attachmentName}\u001b[0m`);
           step.log = step.log.replaceAll(/!\[.*?\]/g, '');
-          step.title = step.title.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
-          step.title = step.title.replaceAll(/!\[.*?\]/g, '');
+          step.error = step?.error?.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+          step.error = step?.error?.replaceAll(/!\[.*?\]/g, '');
+          step.title = step?.title?.replaceAll(`index.php?/attachments/get/${attachment.id}`, attachmentName);
+          step.title = step?.title?.replaceAll(/!\[.*?\]/g, '');
         });
 
         let filePath;
@@ -142,7 +144,7 @@ async function postTestRunToTestomatio(run, tests) {
       console.log(`Error fetching attachments for test ${reportTest.title}: ${JSON.stringify(reportTest)}`, error.message);
     }
 
-    const test = await postToTestomatio(postTestEndpoint, 'tests', {}, originId(reportTest.case_id));
+    const test = await postToTestomatio(postTestEndpoint, 'tests', { sync: true }, originId(reportTest.case_id));
     if (!test) {
       process.stdout.write('x');
     }
@@ -150,7 +152,7 @@ async function postTestRunToTestomatio(run, tests) {
     const testData = {
       status,
       rid: reportTest.id,
-      title: title,
+      title: reportTest.title,
       message,
       steps,
       artifacts,
@@ -176,6 +178,8 @@ export default async function migrateTestRuns() {
   try {
     await loginToTestomatio();
 
+    if (process.env.TESTRAIL_RUN_ID) console.log(`Processing only run #${process.env.TESTRAIL_RUN_ID}`);
+
     const existingRuns = await fetchFromTestomatio(postRunEndpoint);
     const existingRunIds = new Set();
     if (existingRuns && existingRuns.data) {
@@ -192,7 +196,11 @@ export default async function migrateTestRuns() {
     console.log('Found', runs.length, 'test runs');
 
     for (const run of runs) {
-      if (existingRunIds.has(run.id)) {
+      // process only one run if TESTRAIL_RUN_ID is set
+      if (process.env.TESTRAIL_RUN_ID && run.id !== parseInt(process.env.TESTRAIL_RUN_ID, 10)) continue;
+
+
+      if (existingRunIds.has(run.id) && !process.env.TESTRAIL_RUN_ID) {
         console.log(`Run ${run.name} (${run.id}) already exists in Testomat.io, skipping.`);
         continue;
       }
