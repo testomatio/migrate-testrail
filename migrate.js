@@ -32,6 +32,7 @@ export default async function migrateTestCases() {
     getAttachmentsEndpoint,
     downloadAttachmentEndpoint,
     getPrioritesEndpoint,
+    getTypesEndpoint,
   } = getTestRailEndpoints();
 
   const {
@@ -53,6 +54,7 @@ export default async function migrateTestCases() {
     const labelsMap = {};
     const labelValuesMap = {};
     let refLabelId;
+    let typeLabelId;
 
     const jiraProjectsResponse = await fetchFromTestomatio(getJiraProjectsEndpoint);
     const jiraProjectKeys = jiraProjectsResponse?.data?.map(p => p.attributes['project-key']) || [];
@@ -60,6 +62,10 @@ export default async function migrateTestCases() {
 
     const priorities = convertPriorities(await fetchFromTestRail(getPrioritesEndpoint));
     logData('Priorities', priorities);
+
+    const types = convertTypes(await fetchFromTestRail(getTypesEndpoint));
+    logData('Types', types);
+
 
     const fields = await fetchFromTestRail(getCaseFieldsEndpoint);
     console.log('CUSTOM FIELDS:', fields.length);
@@ -75,6 +81,10 @@ export default async function migrateTestCases() {
 
     if (prevLabels.Ref) {
       refLabelId = prevLabels.Ref;
+    }
+
+    if (prevLabels['Type']) {
+      typeLabelId = prevLabels['Type'];
     }
 
     for (const field of labelFields) {
@@ -255,7 +265,6 @@ export default async function migrateTestCases() {
 
         const caseData = {
           title: testCase.title,
-          priority: priorities[testCase.priority_id] || 0,
           position: testCase.display_order,
           'suite-id': suiteId,
         };
@@ -409,7 +418,7 @@ export default async function migrateTestCases() {
 
       logData('description', description);
 
-      await putToTestomatio(postTestEndpoint, 'tests', test.id, { description });
+      await putToTestomatio(postTestEndpoint, 'tests', test.id, { priority: priorities[testCase.priority_id] || 0, description });
 
       // refs
       const refs = testCase.refs?.split(',').map(ref => ref.trim()).filter(ref => !!ref);
@@ -419,6 +428,32 @@ export default async function migrateTestCases() {
         for (const ref of refs) {
           await createRef(ref, test.id);
         }
+      }
+
+      // add type of test
+      if (!typeLabelId) {
+        const labelData = await postToTestomatio(postLabelEndpoint, 'label', { 
+          title: 'Type', 
+          scope: ['tests'], 
+          visibility: ['list'], 
+          field: { short:true, type: 'list', value: Object.values(types).join('\n') } 
+        });
+        if (labelData?.id) {
+          typeLabelId = labelData.id;
+        } else {
+          logData('Could not create Type label');
+          return;
+        }
+      }
+
+      // add type of test
+      if (types[testCase.type_id]) {
+        logData('Adding type of test', types[testCase.type_id]);
+        await postToTestomatio(postLabelLinkEndpoint.replace(':lid', typeLabelId), null, {
+        test_id: test.id,
+          event: 'add',
+          value: types[testCase.type_id],
+        });
       }
 
       // labels
@@ -515,11 +550,24 @@ function convertPriorities(priorities) {
 
   const defaultIndex = priorities.find(p => p.short_name == 'Medium' || p.is_default)?.priority || 0;
 
+  // Map for name to value
+  const nameToValue = {
+    'critical': 3,
+    'high': 2,
+    'important': 1,
+    'low': -1,
+    'medium': 0,
+  };
+
   priorities.forEach((priority) => {
+    const name = priority.name.replace(/^[\d]+\s*-\s*/, '')?.trim()?.toLowerCase();
+    if (nameToValue.hasOwnProperty(name)) {
+      convertedPriorities[priority.id] = nameToValue[name];
+      return;
+    }
+
     const index = priority.priority;
-
     let value = 0;
-
     if (index < defaultIndex) {
       value = -1;
     } else if (index > defaultIndex) {
@@ -531,4 +579,12 @@ function convertPriorities(priorities) {
   return convertedPriorities;
 }
 
+function convertTypes(types) {
+  const convertedTypes = {}
 
+  types.forEach((type) => {
+    convertedTypes[type.id] = type.name;
+  });
+
+  return convertedTypes;
+}

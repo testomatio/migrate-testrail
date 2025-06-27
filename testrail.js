@@ -25,6 +25,7 @@ export function getTestRailEndpoints() {
     downloadRawAttachmentEndpoint: '/attachments/get/',
     getSuiteEndpoint: '/api/v2/get_suite/', // Requires suite ID
     getPrioritesEndpoint: '/api/v2/get_priorities',
+    getTypesEndpoint: '/api/v2/get_case_types',
     getRunsEndpoint: '/api/v2/get_runs/'+projectId+'&order=desc&group_order=desc',
   }
 }
