@@ -126,14 +126,15 @@ async function postTestRunToTestomatio(run, tests) {
 
         let filePath;
         try {
-          const downloadName = `${attachment.id}_${attachment.cassandra_file_id}_${attachmentName}`;
+          const downloadName = `${run.id}_${reportTest.id}_${attachment.id}_${attachment.cassandra_file_id || ''}_${attachmentName}`;
           filePath = await downloadFile(downloadAttachmentEndpoint + attachment.id, downloadName);
           if (!filePath) filePath = await downloadFile(downloadAttachmentEndpoint + attachment.cassandra_file_id, downloadName);
 
           if (!filePath) {
             throw new Error(`Failed to download attachment ${attachment.name}`);
           }
-          const s3Url = await uploadToS3(filePath, testomatioRun.uid + '/' + attachmentName);
+          const uploadName = `${testomatioRun.uid}/${reportTest.id}/${attachmentName}`;
+          const s3Url = await uploadToS3(filePath, uploadName);
           if (s3Url) artifacts.push(s3Url);
           // we can't display attachment in markdown, so we replace it with filename
         } catch (downloadError) {
