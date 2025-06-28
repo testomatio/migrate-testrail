@@ -13,6 +13,8 @@ let username;
 let password;
 let projectId;
 
+const RUN_TIME = +new Date();
+
 export function getTestRailEndpoints() {
   return {
     getSuitesEndpoint: '/api/v2/get_suites/'+projectId, // Requires project ID
@@ -95,9 +97,11 @@ export async function downloadFile(url, filename = '') {
       throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
     }
 
-    filename = filename + '_' + crypto.createHash('sha1').update(url).digest('hex');
+    if (!filename) {
+      filename = crypto.createHash('sha1').update(url).digest('hex');
+    }
 
-    const tempFilePath = path.join(tmpdir(),`download-testrail-${filename}`);
+    const tempFilePath = path.join(tmpdir(),`download-testrail-${RUN_TIME}-${filename}`);
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
