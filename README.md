@@ -111,6 +111,57 @@ To process only one specific run add `TESTRAIL_RUN_ID` env variable:
 TESTRAIL_RUN_ID=
 ```
 
+## Fixing Orphaned Attachments
+
+If you have tests in Testomat.io with orphaned TestRail attachment URLs (like `index.php?/attachments/get/123`), you can fix them using the attachment migration script.
+
+### Prerequisites
+
+This script requires an additional environment variable:
+- `TESTRAIL_SESSION` - Your TestRail session cookie (`tr_session` value)
+
+**To get the session cookie:**
+1. Login to TestRail in your browser
+2. Open Developer Tools → Application → Cookies
+3. Find the `tr_session` cookie value
+
+### Usage
+
+**Dry run (recommended first):**
+```bash
+# Quick dry run
+npm run migrate-attachments:dry-run
+
+# Detailed dry run with debug info
+DEBUG="testomatio:attachment-fix" npm run migrate-attachments:dry-run
+
+# Alternative syntax
+npm run migrate-attachments -- --dry-run
+```
+
+**Actual migration:**
+```bash
+# Run the migration
+npm run migrate-attachments
+
+# With debug information
+DEBUG="testomatio:attachment-fix" npm run migrate-attachments
+```
+
+### What the script does
+
+**In dry run mode:**
+- Searches for tests containing orphaned attachment URLs
+- Shows the number of affected tests and total attachments
+- Provides a summary of what would be migrated
+- Makes no actual changes
+
+**In migration mode:**
+- Downloads attachments from TestRail using your session cookie
+- Uploads them to Testomat.io and attaches to the respective tests
+- Updates test descriptions replacing old URLs with new attachment URLs
+- Provides progress feedback and final summary
+
 ## Troubleshooting
 
 * **Duplucation of steps in test cases**
