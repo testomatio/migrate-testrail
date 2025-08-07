@@ -104,7 +104,7 @@ async function searchTestsWithOrphanedAttachments() {
     let totalPages = 1;
 
     do {
-      const listEndpoint = `${postTestEndpoint}?page=${currentPage}`;
+      const listEndpoint = `${postTestEndpoint}?detail=true&page=${currentPage}`;
 
       logData(`Listing all tests (page ${currentPage})`);
       const response = await fetchFromTestomatio(listEndpoint);
