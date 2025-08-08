@@ -45,7 +45,7 @@ const RUN_TIME = +new Date();
 async function downloadAttachmentFromTestRail(attachmentPath, filename = "") {
   try {
     // Construct full URL
-    const fullUrl = TESTRAIL_URL + attachmentPath;
+    const fullUrl = TESTRAIL_URL + "/" + attachmentPath;
     logData(`Downloading attachment from ${fullUrl}`);
 
     if (DRY_RUN) {
