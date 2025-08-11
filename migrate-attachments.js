@@ -204,9 +204,8 @@ async function fixTestAttachments(test) {
       try {
         logData(`Processing attachment URL: ${attachmentUrl}`);
 
-        // Generate a filename for the attachment
         const attachmentId = attachmentUrl.split("/").pop();
-        const filename = `attachment_${attachmentId}`;
+        const filename = `attachment_${attachmentId}.png`;
 
         // Download attachment from TestRail
         const filePath = await downloadAttachmentFromTestRail(
