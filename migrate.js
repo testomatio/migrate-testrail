@@ -174,6 +174,10 @@ export default async function migrateTestCases() {
     }
 
     for (const suite of suites) {
+      if (!suite || !suite.id || !suite.name) {
+        console.log('Skipping empty suite', suite);
+        continue;
+      }
 
       const suiteData = {
         title: suite.name,
@@ -366,7 +370,7 @@ export default async function migrateTestCases() {
             // Helper function to download, upload, and replace attachment in description
       async function processAttachment(attachmentId, attachmentData = null) {
         attachmentData = attachmentData || { id: attachmentId };
-        
+
         const file = await downloadFile(downloadAttachmentEndpoint + attachmentId);
         if (!file) {
           testsWithFailedAttachments.add(test.attributes['to-url']);
@@ -389,7 +393,7 @@ export default async function migrateTestCases() {
         // Handle full URL replacements
         const host = process.env.TESTOMATIO_HOST || 'https://app.testomat.io';
         description = description.replace(new RegExp(`https?:\\/\\/[^\\/]+\\/(index\\.php\\?\\/attachments\\/get\\/${attachmentId})`, 'g'), `${host}$1`);
-        
+
         // Handle cassandra_file_id if present
         if (attachmentData.cassandra_file_id) {
           description = description.replace(new RegExp(`https?:\\/\\/[^\\/]+\\/(index\\.php\\?\\/attachments\\/get\\/${attachmentData.cassandra_file_id})`, 'g'), `${host}$1`);
@@ -432,11 +436,11 @@ export default async function migrateTestCases() {
 
       // add type of test
       if (!typeLabelId) {
-        const labelData = await postToTestomatio(postLabelEndpoint, 'label', { 
-          title: 'Type', 
-          scope: ['tests'], 
-          visibility: ['list'], 
-          field: { short:true, type: 'list', value: Object.values(types).join('\n') } 
+        const labelData = await postToTestomatio(postLabelEndpoint, 'label', {
+          title: 'Type',
+          scope: ['tests'],
+          visibility: ['list'],
+          field: { short:true, type: 'list', value: Object.values(types).join('\n') }
         });
         if (labelData?.id) {
           typeLabelId = labelData.id;
@@ -526,7 +530,7 @@ function fetchDescriptionFromTestCase(testCase, field) {
 
     if (!text) return '';
     return `## ${field.label}\n\n${text.trim()}`;
-  }  
+  }
 }
 
 function formatCodeBlocks(description) {
