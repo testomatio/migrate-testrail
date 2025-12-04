@@ -15,7 +15,7 @@
   "author": "Michael Bodnarchuk @davert Testomat.io",
   "license": "ISC",
   "dependencies": {
-    "debug": "^4.3.4",
+    "debug": "4.3.4",
     "@aws-sdk/client-s3": "^3.279.0",
     "@aws-sdk/lib-storage": "^3.279.0"
   },
