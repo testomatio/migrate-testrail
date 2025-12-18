@@ -170,10 +170,13 @@ export default async function migrateTestCases() {
     if (suiteId) {
       suites = await fetchFromTestRail(getSuiteEndpoint + suiteId);
     } else {
-      suites = await fetchFromTestRail(getSuitesEndpoint);
+      suites = await fetchFromTestRail(getSuitesEndpoint, 'suites');
     }
 
-    for (const suite of suites) {
+    for (let suite of suites) {
+      if (suite?.suites && !suite?.id) {
+        suite = suite.suites[0];
+      }
       if (!suite || !suite.id || !suite.name) {
         console.log('Skipping empty suite', suite);
         continue;
