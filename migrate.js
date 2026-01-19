@@ -74,10 +74,15 @@ export default async function migrateTestCases() {
 
     // maybe we already imported labels
     const prevLabels = {}
-    const testomatioLabels = await fetchFromTestomatio(postLabelEndpoint);
-    testomatioLabels?.data?.forEach(l => {
-      prevLabels[l.attributes.title] = l.id;
-    });
+    let testomatioLabels;
+    try {
+      testomatioLabels = await fetchFromTestomatio(postLabelEndpoint);
+      testomatioLabels?.data?.forEach(l => {
+        prevLabels[l.attributes.title] = l.id;
+      });
+    } catch (error) {
+      console.warn('Warning: Could not fetch existing labels. Continuing without label cache.', error.message);
+    }
 
     if (prevLabels.Ref) {
       refLabelId = prevLabels.Ref;
@@ -125,7 +130,13 @@ export default async function migrateTestCases() {
         continue;
       }
 
-      const labelData = await postToTestomatio(postLabelEndpoint, 'label', label)
+      let labelData;
+      try {
+        labelData = await postToTestomatio(postLabelEndpoint, 'label', label);
+      } catch (error) {
+        console.warn(`Warning: Could not create label "${label.title}". Skipping.`, error.message);
+        continue;
+      }
 
       if (!labelData) continue;
 
@@ -439,16 +450,21 @@ export default async function migrateTestCases() {
 
       // add type of test
       if (!typeLabelId) {
-        const labelData = await postToTestomatio(postLabelEndpoint, 'label', {
-          title: 'Type',
-          scope: ['tests'],
-          visibility: ['list'],
-          field: { short:true, type: 'list', value: Object.values(types).join('\n') }
-        });
-        if (labelData?.id) {
-          typeLabelId = labelData.id;
-        } else {
-          logData('Could not create Type label');
+        try {
+          const labelData = await postToTestomatio(postLabelEndpoint, 'label', {
+            title: 'Type',
+            scope: ['tests'],
+            visibility: ['list'],
+            field: { short:true, type: 'list', value: Object.values(types).join('\n') }
+          });
+          if (labelData?.id) {
+            typeLabelId = labelData.id;
+          } else {
+            logData('Could not create Type label');
+            return;
+          }
+        } catch (error) {
+          console.warn('Warning: Could not create Type label. Skipping type assignment.', error.message);
           return;
         }
       }
