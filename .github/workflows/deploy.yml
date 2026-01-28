@@ -21,8 +21,7 @@ jobs:
 
             - name: Install AWS CLI
               run: |
-                  sudo apt-get update
-                  sudo apt-get install awscli -y
+                  pip install awscli
 
             - name: Mask AWS account ID
               run: echo "::add-mask::${{ secrets.AWS_ACCOUNT_ID }}"
