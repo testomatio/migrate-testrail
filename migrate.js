@@ -514,7 +514,7 @@ export default async function migrateTestCases() {
 function fetchDescriptionFromTestCase(testCase, field) {
 
   if (FIELD_TYPES[field.type_id] === 'Text') {
-    const text = testCase[field.system_name] || '';
+    const text = cleanHtmlToMarkdown(testCase[field.system_name]) || '';
     if (!text) return '';
     return `## ${field.label}\n\n${text.trim()}`;
   }
@@ -527,13 +527,14 @@ function fetchDescriptionFromTestCase(testCase, field) {
 
   if (FIELD_TYPES[field.type_id] === 'Steps') {
     const text = testCase[field.system_name]?.map(step => {
-      let res = step.content?.trim();
+      let res = cleanHtmlToMarkdown(step.content?.trim());
       if (!res) return '';
       if (!res.startsWith('- ')) res = '- ' + res;
       if (step.expected) {
-        if (!step.expected.trim()) return "\n" + res;
+        const expectedClean = cleanHtmlToMarkdown(step.expected);
+        if (!expectedClean.trim()) return "\n" + res;
 
-        res += '\n*Expected*: ' + step.expected.split('\n')
+        res += '\n*Expected*: ' + expectedClean.split('\n')
           .map(line => line.trim())
           .filter(line => !!line)
           .map(line => {
@@ -552,7 +553,48 @@ function fetchDescriptionFromTestCase(testCase, field) {
   }
 }
 
+/**
+ * Cleans HTML content and converts to markdown format
+ * - Removes <p> tags
+ * - Converts <br> to \n
+ * - Converts <ol>/<ul> with <li> to markdown lists
+ */
+function cleanHtmlToMarkdown(html) {
+  if (!html) return '';
+
+  let result = html;
+
+  // Convert <br> and <br/> to newlines
+  result = result.replace(/<br\s*\/?>/gi, '\n');
+
+  // Convert lists to markdown
+  // Process ordered lists <ol>
+  result = result.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
+    let itemIndex = 1;
+    return content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (liMatch, liContent) => {
+      return `${itemIndex++}. ${liContent.trim()}\n`;
+    });
+  });
+
+  // Process unordered lists <ul>
+  result = result.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
+    return content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (liMatch, liContent) => {
+      return `- ${liContent.trim()}\n`;
+    });
+  });
+
+  // Remove remaining <p> and </p> tags, preserving content
+  result = result.replace(/<\/?p[^>]*>/gi, '');
+
+  // Clean up excessive newlines (more than 2 consecutive)
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result.trim();
+}
+
 function formatCodeBlocks(description) {
+  // First clean HTML to markdown
+  description = cleanHtmlToMarkdown(description);
 
   return description
     .split('\n')
