@@ -567,24 +567,36 @@ function cleanHtmlToMarkdown(html) {
   // Convert <br> and <br/> to newlines
   result = result.replace(/<br\s*\/?>/gi, '\n');
 
+  // Convert inline formatting tags to markdown BEFORE block processing
+  result = result.replace(/<\s*(strong|b)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '**$2**');
+  result = result.replace(/<\s*(em|i)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '*$2*');
+  result = result.replace(/<\s*u\s*>([\s\S]*?)<\s*\/\s*u\s*>/gi, '__$1__');
+  result = result.replace(/<\s*(s|strike|del)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '~~$2~~');
+  result = result.replace(/<\s*code\s*>([\s\S]*?)<\s*\/\s*code\s*>/gi, '`$1`');
+  result = result.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)');
+
   // Convert lists to markdown
   // Process ordered lists <ol>
   result = result.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
     let itemIndex = 1;
-    return content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (liMatch, liContent) => {
+    const items = content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (liMatch, liContent) => {
       return `${itemIndex++}. ${liContent.trim()}\n`;
     });
+    return `\n${items}\n`;
   });
 
   // Process unordered lists <ul>
   result = result.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
-    return content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (liMatch, liContent) => {
+    const items = content.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (liMatch, liContent) => {
       return `- ${liContent.trim()}\n`;
     });
+    return `\n${items}\n`;
   });
 
-  // Remove remaining <p> and </p> tags, preserving content
-  result = result.replace(/<\/?p[^>]*>/gi, '');
+  // Convert <p>...</p> to paragraphs with trailing newlines so block elements don't glue together
+  result = result.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
+  // Strip any stray/unclosed <p> or </p> remaining
+  result = result.replace(/<\/?p[^>]*>/gi, '\n');
 
   // Clean up excessive newlines (more than 2 consecutive)
   result = result.replace(/\n{3,}/g, '\n\n');
